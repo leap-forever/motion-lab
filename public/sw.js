@@ -15,7 +15,7 @@ const BUILD = 'lab-0.1.0';
 const APP = `motion-lab-app-${BUILD}`;
 const RUNTIME = `motion-lab-runtime-${BUILD}`;
 const SHELL_WAIT = 1500;
-const PRECACHE = ['/app.html', '/manifest.webmanifest', '/favicon.svg'];
+const PRECACHE = ['/app', '/manifest.webmanifest', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -46,7 +46,7 @@ async function cacheFirst(request, name) {
 
 /**
  * 应用页：网络与缓存赛跑。
- * 网络拿到新外壳后要写回固定 key `/app.html`，否则缓存里永远是 install 时那份旧 HTML，
+ * 网络拿到新外壳后要写回固定 key `/app`，否则缓存里永远是 install 时那份旧 HTML，
  * 它会一直引用带旧 hash 的 JS —— 发版后看起来就像「代码改了却没生效」。
  * 这里只有 /app* 导航会进来（内容站 / 与 /content/ 已在 fetch 里排除），
  * 所以写回应用外壳不会把内容站的 HTML 串进来。
@@ -55,11 +55,11 @@ async function appPage(request) {
   const net = fetch(request).then(async (r) => {
     if (r.status === 200) {
       const cache = await caches.open(APP);
-      await cache.put('/app.html', r.clone()).catch(() => {});
+      await cache.put('/app', r.clone()).catch(() => {});
     }
     return r;
   });
-  const cached = await caches.match('/app.html', { cacheName: APP });
+  const cached = await caches.match('/app', { cacheName: APP });
   if (!cached) return net.catch(() => Response.error());
   return Promise.race([
     net.then((r) => (r.status >= 500 ? cached : r), () => cached),
