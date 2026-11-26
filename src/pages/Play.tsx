@@ -24,13 +24,6 @@ export default function Play() {
   const begin = async () => {
     if (!canvasRef.current || !videoRef.current) return;
     setNote('');
-    try {
-      const t = await api.consumeTrial(deviceId());
-      if (!t.allowed) { setNote('今天的 2 次免登录试玩已用完。'); return; }
-    } catch (err) {
-      setNote(`后端没连上（${String((err as Error).message)}）。请先运行 npm run api`);
-      return;
-    }
 
     ctrlRef.current?.stop();
     setState({ ...INIT, phase: 'loading', message: '准备中…' });

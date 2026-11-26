@@ -23,8 +23,6 @@ const DIST = join(ROOT, 'dist');
 const CONTENT = join(ROOT, 'content');
 const PORT = Number(process.env.PORT || 8787);
 const BUILD = 'lab-0.1.0';
-const TRIAL_LIMIT = 2;
-const FREE_DAILY_LIMIT = 10;
 
 const store = await openStore(join(ROOT, 'data', 'db.json'));
 
@@ -76,9 +74,6 @@ const MIME = {
 
 const clean = (s, max = 24) =>
   String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);
-
-const day = () => new Date().toISOString().slice(0, 10);
-const trialKey = (id) => `${day()}:${id}`;
 
 function sendJson(res, code, obj) {
   const body = JSON.stringify(obj);
@@ -139,25 +134,16 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { game: gameId, period, rows });
   }
 
+  // 兼容端点：新版前端已不调用试玩接口，但旧版 JS 可能还被 Service Worker / 浏览器缓存着，
+  // 点「开始切水果」仍会请求这两个 URL。限额已移除，这里只回「不限制」：
+  // 不计数、不落盘、不返回 403。等所有客户端刷到新版后可以删掉这一段。
+  // remaining 只是给旧 UI 的「x / 2 局」展示占位，不参与任何判定。
   if (pathname === '/api/trial' && method === 'GET') {
-    const deviceId = clean(url.searchParams.get('deviceId'), 64);
-    if (!deviceId) return sendJson(res, 400, { error: 'DEVICE_REQUIRED' });
-    const used = store.data.trials[trialKey(deviceId)] || 0;
-    return sendJson(res, 200, { limit: TRIAL_LIMIT, used, remaining: Math.max(0, TRIAL_LIMIT - used) });
+    return sendJson(res, 200, { unlimited: true, limit: null, used: 0, remaining: 2 });
   }
 
   if (pathname === '/api/trial/consume' && method === 'POST') {
-    const body = await readBody(req);
-    const deviceId = clean(body.deviceId, 64);
-    if (!deviceId) return sendJson(res, 400, { error: 'DEVICE_REQUIRED' });
-    const key = trialKey(deviceId);
-    const used = store.data.trials[key] || 0;
-    if (used >= TRIAL_LIMIT) {
-      return sendJson(res, 403, { error: 'TRIAL_EXHAUSTED', remaining: 0 });
-    }
-    store.data.trials[key] = used + 1;
-    store.save();
-    return sendJson(res, 200, { allowed: true, remaining: TRIAL_LIMIT - used - 1 });
+    return sendJson(res, 200, { allowed: true, unlimited: true, remaining: 2 });
   }
 
   if (pathname === '/api/scores' && method === 'POST') {
@@ -174,7 +160,7 @@ async function handleApi(req, res, url) {
       stars: starsFor(game, score),
       durationMs: Math.max(0, Math.min(3600_000, Math.round(Number(body.durationMs) || 0))),
       at: Date.now(),
-      // deviceId 只留在服务端，用于统计每日局数；绝不下发到榜单
+      // deviceId 只留在服务端做成绩归因；绝不下发到榜单
       deviceId: clean(body.deviceId, 64),
     };
     store.data.scores.push(record);
@@ -187,7 +173,7 @@ async function handleApi(req, res, url) {
   }
 
   // 简化账号：原站是 Better Auth（邮箱 OTP / 手机验证码 / Google one-tap / session），
-  // 教学版只保留「成人建号 → 每日局数上限」这条主线
+  // 教学版只保留「成人建号」这条主线，不做任何局数限制
   if (pathname === '/api/auth/guest' && method === 'POST') {
     const body = await readBody(req);
     const nickname = clean(body.nickname, 16) || '家长';
@@ -201,10 +187,7 @@ async function handleApi(req, res, url) {
     const token = clean(url.searchParams.get('token'), 64);
     const user = store.data.users[token];
     if (!user) return sendJson(res, 401, { error: 'NO_SESSION' });
-    const used = store.data.scores.filter(
-      (r) => r.deviceId === token && r.at >= Date.now() - 86400_000
-    ).length;
-    return sendJson(res, 200, { user, dailyLimit: FREE_DAILY_LIMIT, dailyUsed: used, dailyRemaining: Math.max(0, FREE_DAILY_LIMIT - used) });
+    return sendJson(res, 200, { user });
   }
 
   return sendJson(res, 404, { error: 'NOT_FOUND', path: pathname });
@@ -276,6 +259,17 @@ const server = http.createServer(async (req, res) => {
     console.error('[server]', err);
     sendJson(res, err.message === 'BAD_JSON' ? 400 : 500, { error: String(err.message || err) });
   }
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    // npm run start 与 npm run api 是同一个服务，重复启动最常见的原因就是忘了关上一个
+    console.error(`[motion-lab] 端口 ${PORT} 已被占用：多半是另一个 npm run start / npm run api 还在跑。`);
+    console.error('先到那个终端 Ctrl+C，或换端口：PORT=8788 npm run api');
+  } else {
+    console.error('[motion-lab] 服务启动失败：', err);
+  }
+  process.exit(1);
 });
 
 server.listen(PORT, '127.0.0.1', () => {

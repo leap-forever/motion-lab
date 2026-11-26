@@ -25,7 +25,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-/** 原站也用 localStorage 里的设备标识做免登录试玩计数，不收集姓名 */
+/** localStorage 里的设备标识只用于成绩归因；不收集姓名，也不做任何局数限制 */
 export function deviceId(): string {
   const key = 'motion-lab:device';
   let id = localStorage.getItem(key);
@@ -41,16 +41,6 @@ export const api = {
   games: () => request<{ games: GameInfo[] }>('/api/games'),
   leaderboard: (game: string) =>
     request<{ rows: ScoreRow[] }>(`/api/leaderboard?game=${encodeURIComponent(game)}`),
-  trial: (id: string) =>
-    request<{ limit: number; used: number; remaining: number }>(`/api/trial?deviceId=${encodeURIComponent(id)}`),
-  consumeTrial: (id: string) =>
-    request<{ allowed: boolean; remaining: number }>('/api/trial/consume', {
-      method: 'POST', body: JSON.stringify({ deviceId: id }),
-    }).catch((err: Error & { status?: number; data?: { remaining?: number } }) => {
-      // 403 是业务结果不是异常：把 remaining 带回去给 UI
-      if (err.status === 403) return { allowed: false, remaining: err.data?.remaining ?? 0 };
-      throw err;
-    }),
   submitScore: (payload: { game: string; nickname: string; score: number; durationMs: number; deviceId: string }) =>
     request<{ ok: boolean; stars: number; rank: number }>('/api/scores', {
       method: 'POST', body: JSON.stringify(payload),

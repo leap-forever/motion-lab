@@ -32,6 +32,11 @@ npm run start
 # → http://127.0.0.1:8787/api/health
 ```
 
+> `npm run start` 与 `npm run api` 是同一条命令（`node server/index.mjs`），**同一端口只能起一个**。
+> 重复启动会报 `EADDRINUSE: 127.0.0.1:8787`：到原终端 Ctrl+C，或换端口
+> `PORT=8788 npm run api`（PowerShell：`$env:PORT='8788'; npm run api`）。
+> 想确认是不是本项目的服务：`curl http://127.0.0.1:8787/api/health`。
+
 开发模式（前端热更新，API 由 Vite 代理到 8787）：
 
 ```bash
@@ -42,10 +47,14 @@ npm run dev      # 终端 B：Vite 5173 → http://127.0.0.1:5173/app
 ### 完全离线（推荐，一键）
 
 ```bash
+npm ci              # 先装依赖；离线脚本只用 Node 内置模块，但不装它 tsc/vite 会报 not found
 npm run offline     # = offline:fetch + build：下载全套资源后构建，约 83 MB
 npm run start
 # → http://127.0.0.1:8787/content/offline-check.html   离线自检页
 ```
+
+> clone 后或删掉 `node_modules` 后直接跑 `npm run offline`，前半段下载会成功、后半段
+> `tsc --noEmit` 会报 `sh: 1: tsc: not found` —— 这是依赖没装，补一次 `npm ci` 即可。
 
 `vite.config.ts` 在**构建时**探测 `public/models` 与 `public/mediapipe`，关键文件齐全就注入
 `__LOCAL_MODELS__=true`，`src/lib/config.ts` 随即把 WASM / 模型 URL 从 CDN 切到同源路径 ——
@@ -109,13 +118,21 @@ FruitSlash.update(dt) → Stage.begin() → Canvas 2D → Stage.end()
 | GET | `/api/health` | 健康检查 |
 | GET | `/api/games` | 游戏清单（含素材路径、星级阈值） |
 | GET | `/api/leaderboard?game=&period=week` | 榜单，只回昵称/分数/星级 |
-| GET | `/api/trial?deviceId=` | 查询免登录剩余局数（每天 2 局） |
-| POST | `/api/trial/consume` | 消耗一次试玩 |
 | POST | `/api/scores` | 上报成绩，服务端算星级与排名 |
 | POST | `/api/auth/guest` | 简化「成人建号」 |
-| GET | `/api/me?token=` | 账号与每日局数 |
+| GET | `/api/me?token=` | 账号信息 |
+| GET | `/api/trial?deviceId=` | **兼容端点**：恒返回「不限制」 |
+| POST | `/api/trial/consume` | **兼容端点**：恒返回 `allowed: true` |
 
-数据落在 `data/db.json`；`deviceId` 只留在服务端做计数，**绝不下发到榜单**。
+数据落在 `data/db.json`；`deviceId` 只留在服务端做成绩归因，**绝不下发到榜单**。
+免登录游玩不限局数、不按天重置，前端与后端都不再有任何局数拦截。
+
+两个 `/api/trial*` 只是给旧客户端的兼容层：新版前端已不再调用，但旧版 JS 可能仍被
+Service Worker / 浏览器缓存着。它们不计数、不落盘、不返回 403，等客户端都刷到新版后可删。
+
+> **发版后记得硬刷新**：`/app` 外壳由 SW 预缓存，改完前端要 `npm run build`，
+> 再到浏览器 Ctrl+F5（或关掉标签重开）。若看到「后端没连上：NOT_FOUND」，
+> 就是旧页面还在请求已经删掉的接口；兼容端点会让它照常能玩。
 
 ---
 
@@ -128,7 +145,7 @@ FruitSlash.update(dt) → Stage.begin() → Canvas 2D → Stage.end()
 | MediaPipe WASM + 三档模型切换 + 双兜底 | hand / face landmarker、双人分屏对战 |
 | 光照与站位自检、设备检测页 | 语音包（原站私有 `.bin` 容器）与 TTS |
 | 一个完整可玩的切水果 + 成绩/榜单闭环 | 其余 119 个游戏、会员/Stripe、社交、云相册 |
-| 最小账号与试玩限额 | Better Auth 全套（OTP / 手机验证码 / Google one-tap） |
+| 最小账号（无试玩限额） | Better Auth 全套（OTP / 手机验证码 / Google one-tap） |
 
 ---
 

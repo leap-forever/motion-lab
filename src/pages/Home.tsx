@@ -1,40 +1,19 @@
 import { useEffect, useState } from 'react';
-import { api, deviceId, type GameInfo, type ScoreRow } from '../lib/api';
+import { api, type GameInfo, type ScoreRow } from '../lib/api';
 import { loadSettings, saveSettings } from '../lib/controller';
 import SettingsPanel from '../components/SettingsPanel';
 
 export default function Home() {
   const [games, setGames] = useState<GameInfo[]>([]);
   const [board, setBoard] = useState<ScoreRow[]>([]);
-  const [trial, setTrial] = useState<number | null>(null);
   const [settings, setSettings] = useState(loadSettings);
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState('');
 
   useEffect(() => {
     api.games().then((r) => setGames(r.games)).catch(() => {});
     api.leaderboard('fruit-slash').then((r) => setBoard(r.rows)).catch(() => {});
-    api.trial(deviceId()).then((r) => setTrial(r.remaining)).catch(() => {});
   }, []);
 
   const updateSettings = (s: typeof settings) => { setSettings(s); saveSettings(s); };
-
-  const start = async () => {
-    setBusy(true); setNote('');
-    try {
-      const r = await api.consumeTrial(deviceId());
-      if (!r.allowed) {
-        setNote('今天的 2 次免登录试玩已用完（教学版按天重置）。');
-        return;
-      }
-      setTrial(r.remaining);
-      window.location.href = '/app/play/fruit-slash';
-    } catch (err) {
-      setNote(`后端没连上：${String((err as Error).message)}。请先运行 npm run api`);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="page">
@@ -43,11 +22,10 @@ export default function Home() {
           <h1>用摄像头玩的体感游戏</h1>
           <p>浏览器里跑 MediaPipe 姿态识别，画面不出本机。这个项目把「采集 → 帧节流 → 推理 → 特征 → Canvas 2D 游戏」整条链路摊开给你看。</p>
           <div className="hero-actions">
-            <button className="primary" onClick={start} disabled={busy}>开始切水果 →</button>
+            <a className="primary" href="/app/play/fruit-slash">开始切水果 →</a>
             <a className="ghost" href="/app/check">先做设备检测</a>
           </div>
-          <p className="tiny">剩余免登录试玩：{trial === null ? '…' : `${trial} / 2`} 局 · 首次加载需下载约 18MB 的 WASM + 模型</p>
-          {note && <p className="warn">{note}</p>}
+          <p className="tiny">免登录、局数不限 · 首次加载需下载约 18MB 的 WASM + 模型</p>
         </div>
         <div className="arch-card">
           <h3>这一版复刻了什么</h3>
