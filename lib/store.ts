@@ -85,10 +85,17 @@ type GlobalWithStore = typeof globalThis & { __motionLabStore?: Promise<Store> }
 
 const g = globalThis as GlobalWithStore;
 
-/** 取单例 store；首次调用打开 data/db.json */
+/**
+ * 取单例 store；首次调用打开 db.json。
+ * Vercel 的项目目录只读，只能用 /tmp；本地仍用 data/ 方便查看和留存。
+ */
+const DATA_DIR = process.env.VERCEL
+  ? '/tmp/motion-lab-data'
+  : join(process.cwd(), 'data');
+
 export function store(): Promise<Store> {
   if (!g.__motionLabStore) {
-    g.__motionLabStore = openStore(join(process.cwd(), 'data', 'db.json'));
+    g.__motionLabStore = openStore(join(DATA_DIR, 'db.json'));
   }
   return g.__motionLabStore;
 }

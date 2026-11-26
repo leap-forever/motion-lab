@@ -10,3 +10,4 @@ data/*.json
 # npm run models 下载的离线大模型（约 31MB），不入库
 # public/models/
 # public/mediapipe/
+*.tsbuildinfo
