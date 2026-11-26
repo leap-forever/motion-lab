@@ -1,0 +1,18 @@
+:root{font-family:system-ui,"Microsoft YaHei",sans-serif;color:#1d2740;background:#f6f8fc}
+*{box-sizing:border-box}body{margin:0}a{color:#3d6bff;text-decoration:none}
+header{display:flex;gap:24px;align-items:center;padding:14px 28px;background:#fff;border-bottom:1px solid #e3e8f2}
+.brand{font-weight:800;font-size:19px;color:#1d2740}.brand i{display:inline-block;width:12px;height:12px;border-radius:50%;background:#6bcb77;margin-right:8px}
+header nav{margin-left:auto;display:flex;gap:20px;font-size:14px}
+.wrap{max-width:1100px;margin:0 auto;padding:40px 28px 70px}
+h1{font-size:42px;line-height:1.2;margin:0 0 14px}h2{font-size:22px;margin:40px 0 16px}
+p{line-height:1.8;color:#4a5570}.lead{font-size:17px;max-width:720px}
+.cta{display:inline-block;background:#3d6bff;color:#fff;font-weight:700;padding:12px 22px;border-radius:10px;margin:16px 10px 0 0}
+.cta.sec{background:#fff;color:#3d6bff;border:1px solid #e3e8f2}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:18px}
+.card{background:#fff;border:1px solid #e3e8f2;border-radius:14px;overflow:hidden}
+.card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#e9eef7}
+.card div{padding:14px 16px 18px}.card h3{margin:0 0 6px;font-size:16px}.card p{font-size:13px;margin:0}
+.note{background:#fff;border:1px solid #e3e8f2;border-radius:14px;padding:20px 24px;line-height:1.9}
+.note code{background:#e8eeff;padding:2px 6px;border-radius:5px}
+footer{text-align:center;color:#66708a;font-size:12px;padding:20px;border-top:1px solid #e3e8f2}
+@media(max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}h1{font-size:32px}}

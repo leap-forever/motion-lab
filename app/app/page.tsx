@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
-import { api, type GameInfo, type ScoreRow } from '../lib/api';
-import { loadSettings, saveSettings } from '../lib/controller';
-import SettingsPanel from '../components/SettingsPanel';
+'use client';
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import { api, type GameInfo, type ScoreRow } from '@/src/lib/api';
+import { loadSettings, saveSettings } from '@/src/lib/controller';
+import SettingsPanel from '@/components/SettingsPanel';
+
+/** 游戏大厅（原 src/pages/Home.tsx） */
+export default function HomePage() {
   const [games, setGames] = useState<GameInfo[]>([]);
   const [board, setBoard] = useState<ScoreRow[]>([]);
   const [settings, setSettings] = useState(loadSettings);

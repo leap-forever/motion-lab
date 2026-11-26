@@ -1,7 +1,9 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { listCameras } from '../lib/camera';
-import { MODEL_BYTES, type PoseModel } from '../lib/config';
-import type { Settings } from '../lib/controller';
+import { listCameras } from '@/src/lib/camera';
+import { MODEL_BYTES, type PoseModel } from '@/src/lib/config';
+import type { Settings } from '@/src/lib/controller';
 
 interface Props {
   value: Settings;

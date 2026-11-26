@@ -15,7 +15,7 @@
 
 ## 快速开始
 
-环境：Node ≥ 20、Chrome / Edge（摄像头需要 `localhost` 或 HTTPS）。
+环境：Node ≥ 20.9、Chrome / Edge（摄像头需要 `localhost` 或 HTTPS）。
 
 ```bash
 # 1) 装依赖（若腾讯镜像 403，换源）
@@ -24,42 +24,40 @@ npm install --registry=https://registry.npmmirror.com
 # 2) 取图片素材（站点公开 jpg，约 450KB）
 npm run assets
 
-# 3) 生产模式：构建后由 Node 后端单端口托管
+# 3) 生产模式：Next.js 单端口托管（内容站 / 应用 / API 同在 8787）
 npm run build
 npm run start
 # → http://127.0.0.1:8787/        静态内容站
-# → http://127.0.0.1:8787/app     React PWA
+# → http://127.0.0.1:8787/app     React PWA（App Router）
 # → http://127.0.0.1:8787/api/health
 ```
 
-> `npm run start` 与 `npm run api` 是同一条命令（`node server/index.mjs`），**同一端口只能起一个**。
-> 重复启动会报 `EADDRINUSE: 127.0.0.1:8787`：到原终端 Ctrl+C，或换端口
-> `PORT=8788 npm run api`（PowerShell：`$env:PORT='8788'; npm run api`）。
+> `npm run start` 即 `next start -p 8787`，**同一端口只能起一个**。
+> 重复启动会报 `EADDRINUSE`：到原终端 Ctrl+C，或换端口 `npx next start -p 8788`。
 > 想确认是不是本项目的服务：`curl http://127.0.0.1:8787/api/health`。
 
-开发模式（前端热更新，API 由 Vite 代理到 8787）：
+开发模式（Next.js dev 同时提供前端热更新与 API，无需分开起后端）：
 
 ```bash
-npm run api      # 终端 A：后端 8787
-npm run dev      # 终端 B：Vite 5173 → http://127.0.0.1:5173/app
+npm run dev      # → http://127.0.0.1:3000/   内容站；/app 应用；/api/* 接口
 ```
 
 ### 完全离线（推荐，一键）
 
 ```bash
-npm ci              # 先装依赖；离线脚本只用 Node 内置模块，但不装它 tsc/vite 会报 not found
+npm ci              # 先装依赖；离线脚本只用 Node 内置模块，但不装它 next build 会报 not found
 npm run offline     # = offline:fetch + build：下载全套资源后构建，约 83 MB
 npm run start
 # → http://127.0.0.1:8787/content/offline-check.html   离线自检页
 ```
 
 > clone 后或删掉 `node_modules` 后直接跑 `npm run offline`，前半段下载会成功、后半段
-> `tsc --noEmit` 会报 `sh: 1: tsc: not found` —— 这是依赖没装，补一次 `npm ci` 即可。
+> `next build` 会因找不到 `next` 而失败 —— 这是依赖没装，补一次 `npm ci` 即可。
 
-`vite.config.ts` 在**构建时**探测 `public/models` 与 `public/mediapipe`，关键文件齐全就注入
-`__LOCAL_MODELS__=true`，`src/lib/config.ts` 随即把 WASM / 模型 URL 从 CDN 切到同源路径 ——
+`next.config.ts` 在**构建时**探测 `public/models` 与 `public/mediapipe`，关键文件齐全就把
+`NEXT_PUBLIC_LOCAL_MODELS` 注入为 `'1'`，`src/lib/config.ts` 随即把 WASM / 模型 URL 从 CDN 切到同源路径 ——
 **不用记环境变量**。删掉这些文件重新 build 会自动回 CDN；想临时强制回 CDN：
-`VITE_LOCAL_MODELS=0 npm run build`（PowerShell：`$env:VITE_LOCAL_MODELS='0'; npm run build`）。
+`NEXT_PUBLIC_LOCAL_MODELS=0 npm run build`（PowerShell：`$env:NEXT_PUBLIC_LOCAL_MODELS='0'; npm run build`）。
 
 拆开跑也行：`npm run assets`（5 个站点素材）、`npm run models`（11 个 WASM / 模型文件）。
 两个脚本都幂等，已下好的会 `skip`，失败的重跑会断点续传。
@@ -74,7 +72,7 @@ npm run start
 | 层 | 原站（实测） | 本项目 |
 |---|---|---|
 | 内容站 | 构建时预生成静态 HTML，249 URL / 11 语言 / 6 类 JSON-LD / Speculation Rules / `llms.txt` | `content/index.html`，纯静态，2 类 JSON-LD + 预取规则 |
-| 应用 | Vite + React + TanStack Router/Query，上百个带 hash 的 lazy chunk | Vite + React + TS，**故意不拆 chunk**（教学可读性优先），按 `pathname` 手写路由 |
+| 应用 | Vite + React + TanStack Router/Query，上百个带 hash 的 lazy chunk | Next.js 16（App Router）+ React 19，文件路由 `/app/*`，摄像头/推理页 `'use client'` |
 | 摄像头 | `getUserMedia` 1280×720@30、`audio:false`、`requestVideoFrameCallback` 测帧率 | 同（`src/lib/camera.ts`） |
 | 推理调度 | `vision-*.js` 内的帧节流器，按真实帧率决定是否推理 | `src/lib/frameGate.ts`，逐行注释版 |
 | 姿态识别 | MediaPipe Tasks Vision 1.1.1 WASM，pose lite/full/heavy + hand + face `.task` | 同，含 GPU→CPU、SIMD→nosimd 双兜底（只接 pose） |
@@ -82,7 +80,7 @@ npm run start
 | 环境自检 | 亮度直方图 + 关键点几何 → 逆光/太近/脚没进画面 | `framing.ts`（`check` 页可视化） |
 | 渲染 | 自研 Canvas 2D，DPR≤2、16:9 letterbox、离屏精灵缓存 | `stage.ts` / `draw.ts`，逻辑坐标固定 1280×720 |
 | 离线 | `sw.js` 构建时注入 PRECACHE/RUNTIME_FILES；外壳网络缓存竞速；`?v=hash`；SHA-256 迁移旧模型 | `public/sw.js` 保留四条策略形态，改为运行时缓存 |
-| 后端 | `api.dongdongpark.com` + Better Auth(`/api/auth/*`) + Stripe | Node 原生 `http`，零依赖，JSON 文件持久化 |
+| 后端 | `api.dongdongpark.com` + Better Auth(`/api/auth/*`) + Stripe | Next.js Route Handlers（`app/api/*`），JSON 文件持久化 |
 | 素材 CDN | `img.dongdongpark.com` | `public/assets/shots/`（本地） |
 
 ---
@@ -151,8 +149,8 @@ Service Worker / 浏览器缓存着。它们不计数、不落盘、不返回 40
 
 ## 建议阅读顺序
 
-1. `content/index.html` → 看「内容站」为什么完全不依赖 JS
-2. `server/index.mjs` → 看一个域名怎么分出两层页面 + `/api`
+1. `app/page.tsx` → 看「内容站」为什么尽量不依赖 JS
+2. `app/api/*/route.ts` + `lib/store.ts` → 看一个域名怎么分出两层页面 + `/api`
 3. `src/lib/camera.ts` → `frameGate.ts` → `vision.ts`（采集与推理是怎么解耦的）
 4. `src/lib/landmarks.ts` → `features.ts` → `framing.ts`（从坐标到「动作」）
 5. `src/lib/controller.ts` → rAF 主循环怎么把上面全串起来

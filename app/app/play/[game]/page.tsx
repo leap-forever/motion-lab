@@ -1,7 +1,9 @@
+'use client';
+
 import { useEffect, useRef, useState } from 'react';
-import { api, deviceId } from '../lib/api';
-import { loadSettings, PlayController, type RuntimeState, type Settings } from '../lib/controller';
-import SettingsPanel from '../components/SettingsPanel';
+import { api, deviceId } from '@/src/lib/api';
+import { loadSettings, PlayController, type RuntimeState, type Settings } from '@/src/lib/controller';
+import SettingsPanel from '@/components/SettingsPanel';
 
 const INIT: RuntimeState = {
   phase: 'idle', message: '', camFps: 0, inferFps: 0, delegate: '', simd: false,
@@ -9,7 +11,14 @@ const INIT: RuntimeState = {
   framing: '', lighting: '', error: '', persons: 0,
 };
 
-export default function Play() {
+/**
+ * 游戏页（原 src/pages/Play.tsx）。
+ *
+ * 摄像头 / WASM / Canvas 全是浏览器 API，整页标记 'use client'。
+ * Next 在服务端只渲染外壳（idle overlay），canvas/video 的真实初始化在客户端 effect 里完成。
+ * 动态段 [game] 兼容 /app/play/<任意>；当前可玩的只有 fruit-slash（与原版一致）。
+ */
+export default function PlayPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const ctrlRef = useRef<PlayController | null>(null);

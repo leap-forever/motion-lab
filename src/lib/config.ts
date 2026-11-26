@@ -22,12 +22,14 @@ export const MODEL_FILES: Record<PoseModel, string> = {
   heavy: 'pose_landmarker_heavy.task',
 };
 
-/** vite.config.ts 构建时注入；typeof 保护让这份代码脱离 Vite 单独跑也不报错 */
-declare const __LOCAL_MODELS__: boolean | undefined;
-
-const envLocal = import.meta.env.VITE_LOCAL_MODELS;
-const autoLocal = typeof __LOCAL_MODELS__ !== 'undefined' && __LOCAL_MODELS__ === true;
-export const LOCAL = envLocal === '0' ? false : autoLocal || envLocal === '1';
+/**
+ * 本地化开关。
+ * next.config.ts 在构建期探测 public/ 离线资源，把结果注入为
+ * NEXT_PUBLIC_LOCAL_MODELS（'1' / '0'）—— Next.js 会把它打进浏览器端。
+ * 想强制回 CDN：NEXT_PUBLIC_LOCAL_MODELS=0 npm run build。
+ */
+const envLocal = process.env.NEXT_PUBLIC_LOCAL_MODELS;
+export const LOCAL = envLocal === '1';
 
 /** FilesetResolver 需要的目录，里面必须同时有 simd 与 nosimd 两套 wasm */
 export const WASM_BASE = LOCAL ? '/mediapipe/wasm' : `${VISION_CDN}/wasm`;

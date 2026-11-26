@@ -56,8 +56,9 @@ export class PoseDetector {
     report('module', '加载 tasks-vision ESM 模块…');
     let mod: VisionModule;
     try {
-      // @vite-ignore：URL 是运行期字符串，别让打包器去静态解析它
-      mod = await import(/* @vite-ignore */ VISION_MODULE_URL) as unknown as VisionModule;
+      // VISION_MODULE_URL 是运行期绝对 URL（同源 /mediapipe/... 或 CDN），
+      // 加上 vite-ignore / webpackIgnore：让任何打包器都别尝试静态解析这条 import。
+      mod = await import(/* @vite-ignore */ /* webpackIgnore: true */ VISION_MODULE_URL) as unknown as VisionModule;
     } catch (err) {
       report('error', '推理模块加载失败');
       throw new Error(`tasks-vision 模块加载失败：${String(err)}`);

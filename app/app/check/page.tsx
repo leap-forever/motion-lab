@@ -1,11 +1,13 @@
+'use client';
+
 import { useState } from 'react';
-import { deviceSummary, listCameras, measureFps, openCamera, probeSimd, probeWebGL2 } from '../lib/camera';
-import { analyseLighting } from '../lib/framing';
+import { deviceSummary, listCameras, measureFps, openCamera, probeSimd, probeWebGL2 } from '@/src/lib/camera';
+import { analyseLighting } from '@/src/lib/framing';
 
 interface Row { label: string; value: string; level: 'ok' | 'warn' | 'bad' | 'info'; tip?: string }
 
-/** 对应原站 /check：一分钟把「识别慢」的原因定位到环境、显卡还是浏览器 */
-export default function Check() {
+/** 设备检测（原 src/pages/Check.tsx）：对应原站 /check */
+export default function CheckPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
 
