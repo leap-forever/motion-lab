@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>离线资源自检 · Motion Lab</title>
+<style>
+  body { font: 15px/1.7 system-ui, sans-serif; max-width: 780px; margin: 40px auto; padding: 0 18px; }
+  pre { background: #f5f6f8; border: 1px solid #ddd; border-radius: 8px; padding: 16px; white-space: pre-wrap; }
+  .pass { color: #137333; font-weight: 700; }
+  .fail { color: #c5221f; font-weight: 700; }
+</style>
+</head>
+<body>
+<h1>离线资源自检</h1>
+<p>这个页面只做一件事：不碰任何外网，从同源路径加载 MediaPipe ESM → WASM → <code>.task</code> 模型，并真正创建一个 <code>PoseLandmarker</code> 实例。配合浏览器的「断网 / 屏蔽外部域名」可以实证整套资源已本地化。</p>
+<pre id="out">running…</pre>
+<script type="module">
+const out = document.getElementById('out');
+out.textContent = '';
+const log = (s) => { out.textContent += s + '\n'; };
+
+/* 与 scripts/fetch-models.mjs 的清单保持一致 */
+const FILES = [
+  '/mediapipe/vision_bundle.mjs',
+  '/mediapipe/wasm/vision_wasm_internal.js',
+  '/mediapipe/wasm/vision_wasm_internal.wasm',
+  '/mediapipe/wasm/vision_wasm_nosimd_internal.js',
+  '/mediapipe/wasm/vision_wasm_nosimd_internal.wasm',
+  '/mediapipe/wasm/vision_wasm_module_internal.js',
+  '/mediapipe/wasm/vision_wasm_module_internal.wasm',
+  '/models/pose_landmarker_lite.task',
+  '/models/pose_landmarker_full.task',
+  '/models/pose_landmarker_heavy.task',
+];
+
+let ok = true;
+try {
+  /* 1) 只取响应头，不把 80MB 内容读进内存 */
+  for (const p of FILES) {
+    const r = await fetch(p, { method: 'HEAD' });
+    log(`${r.ok ? 'OK  ' : 'MISS'} ${r.status} ${p}  ${r.headers.get('content-length') || '-'} bytes`);
+    if (!r.ok) ok = false;
+  }
+
+  /* 2) 真正初始化一次推理器（CPU delegate，headless 下也能跑） */
+  const mod = await import('/mediapipe/vision_bundle.mjs');
+  log(`OK   ESM import · ${Object.keys(mod).length} exports`);
+  const fileset = await mod.FilesetResolver.forVisionTasks('/mediapipe/wasm');
+  log(`OK   FilesetResolver · ${fileset.wasmLoaderPath}`);
+  const landmarker = await mod.PoseLandmarker.createFromOptions(fileset, {
+    baseOptions: { modelAssetPath: '/models/pose_landmarker_lite.task', delegate: 'CPU' },
+    runningMode: 'VIDEO',
+    numPoses: 1,
+    minPoseDetectionConfidence: 0.5,
+    minPosePresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+    outputSegmentationMasks: false,
+  });
+  log('OK   PoseLandmarker.createFromOptions · CPU · lite');
+  landmarker.close();
+  log('OK   close()');
+} catch (err) {
+  ok = false;
+  log(`FAIL ${err && err.stack ? err.stack : String(err)}`);
+}
+
+/* 3) 硬断言：整轮初始化没有发出任何跨域请求。
+      比「用 DNS 规则断网」更可信 —— 本机 Chrome 走系统代理时 DNS 规则会被绕过。 */
+const resources = performance.getEntriesByType('resource').map((e) => e.name);
+const external = resources.filter((u) => {
+  try { return new URL(u).origin !== location.origin; } catch { return false; }
+});
+if (external.length) {
+  ok = false;
+  log(`FAIL 出现跨域请求：${external.join(', ')}`);
+} else {
+  log(`OK   network: ${resources.length} 个资源请求全部同源 ${location.origin}`);
+}
+
+/* 4) 附带信息：主动探一下外网（不参与 PASS 判定） */
+try {
+  await fetch('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/package.json', { mode: 'no-cors' });
+  log('external probe: REACHABLE（浏览器走系统代理，但同源断言已覆盖）');
+} catch {
+  log('external probe: BLOCKED（外网确实不可达）');
+}
+
+log(`RESULT: ${ok ? 'PASS' : 'FAIL'}`);
+document.body.classList.add(ok ? 'pass' : 'fail');
+</script>
+</body>
+</html>

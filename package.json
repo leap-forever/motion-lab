@@ -11,13 +11,16 @@
     "start": "node server/index.mjs",
     "preview": "npm run build && npm run start",
     "assets": "node scripts/fetch-assets.mjs",
-    "models": "node scripts/fetch-models.mjs"
+    "models": "node scripts/fetch-models.mjs",
+    "offline:fetch": "node scripts/fetch-assets.mjs && node scripts/fetch-models.mjs",
+    "offline": "npm run offline:fetch && npm run build"
   },
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/node": "^22.20.7",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.6.0",

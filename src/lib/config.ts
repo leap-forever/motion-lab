@@ -6,9 +6,10 @@
  *   - 每份 WASM 还登记了一个 registry.npmmirror.com 镜像，国内用户优先走镜像；
  *   - Service Worker 把两份都缓存下来，所以装过一次之后断网也能玩。
  *
- * 教学版默认走公共 CDN（开箱即跑、不用先下 20MB），
- * 想完整体验「离线」就跑 `npm run models` 把文件落到 public/，
- * 再用 VITE_LOCAL_MODELS=1 npm run build 切换到本地路径。
+ * 教学版默认走公共 CDN（开箱即跑、不用先下几十 MB）。
+ * `npm run offline` 把全套资源落到 public/ 后，vite.config.ts 会在构建时
+ * 注入 __LOCAL_MODELS__=true，这里就自动切到同源路径，无需手动设环境变量。
+ * 想强制回 CDN：VITE_LOCAL_MODELS=0 npm run build。
  */
 export const VISION_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1';
 export const MODEL_CDN = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker';
@@ -21,7 +22,12 @@ export const MODEL_FILES: Record<PoseModel, string> = {
   heavy: 'pose_landmarker_heavy.task',
 };
 
-export const LOCAL = import.meta.env.VITE_LOCAL_MODELS === '1';
+/** vite.config.ts 构建时注入；typeof 保护让这份代码脱离 Vite 单独跑也不报错 */
+declare const __LOCAL_MODELS__: boolean | undefined;
+
+const envLocal = import.meta.env.VITE_LOCAL_MODELS;
+const autoLocal = typeof __LOCAL_MODELS__ !== 'undefined' && __LOCAL_MODELS__ === true;
+export const LOCAL = envLocal === '0' ? false : autoLocal || envLocal === '1';
 
 /** FilesetResolver 需要的目录，里面必须同时有 simd 与 nosimd 两套 wasm */
 export const WASM_BASE = LOCAL ? '/mediapipe/wasm' : `${VISION_CDN}/wasm`;

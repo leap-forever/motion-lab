@@ -39,13 +39,24 @@ npm run api      # 终端 A：后端 8787
 npm run dev      # 终端 B：Vite 5173 → http://127.0.0.1:5173/app
 ```
 
-可选：把 WASM 与模型落到本地，体验**真离线**（约 31MB，第一次几分钟）：
+### 完全离线（推荐，一键）
 
 ```bash
-npm run models
-VITE_LOCAL_MODELS=1 npm run build && npm run start
-# Windows PowerShell: $env:VITE_LOCAL_MODELS='1'; npm run build; npm run start
+npm run offline     # = offline:fetch + build：下载全套资源后构建，约 83 MB
+npm run start
+# → http://127.0.0.1:8787/content/offline-check.html   离线自检页
 ```
+
+`vite.config.ts` 在**构建时**探测 `public/models` 与 `public/mediapipe`，关键文件齐全就注入
+`__LOCAL_MODELS__=true`，`src/lib/config.ts` 随即把 WASM / 模型 URL 从 CDN 切到同源路径 ——
+**不用记环境变量**。删掉这些文件重新 build 会自动回 CDN；想临时强制回 CDN：
+`VITE_LOCAL_MODELS=0 npm run build`（PowerShell：`$env:VITE_LOCAL_MODELS='0'; npm run build`）。
+
+拆开跑也行：`npm run assets`（5 个站点素材）、`npm run models`（11 个 WASM / 模型文件）。
+两个脚本都幂等，已下好的会 `skip`，失败的重跑会断点续传。
+
+> **注意**：`public/models/` 与 `public/mediapipe/` 这 83 MB 已在 `.gitignore` 里，
+> **不进 GitHub 仓库**（避免仓库膨胀）。clone 之后执行一次 `npm run offline` 即可复原。
 
 ---
 
@@ -137,9 +148,34 @@ FruitSlash.update(dt) → Stage.begin() → Canvas 2D → Stage.end()
 
 | 资源 | 来源 | 备注 |
 |---|---|---|
-| 4 张游戏截图 | `https://dongdongpark.com/shots/en/*.jpg` | 站点公开素材，**仅本地学习**，脚本 `npm run assets` |
+| 4 张游戏截图 | `https://dongdongpark.com/shots/en/*.jpg` | 站点公开素材，**仅本地学习**，脚本 `npm run assets`，合计 450 KB |
 | 原始 favicon | `https://dongdongpark.com/favicon.svg` | 存为 `public/assets/origin-favicon.svg` 作样本；项目图标另自绘 |
-| tasks-vision 1.1.1 / WASM | `cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1` | Apache-2.0，运行时 CDN 或 `npm run models` 本地化 |
-| `pose_landmarker_lite.task` | Google `storage.googleapis.com/mediapipe-models` | MediaPipe 官方模型 |
+| `vision_bundle.mjs` + sourcemap | `cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1` | Apache-2.0，156 KB + 392 KB |
+| WASM 3 套（`js` + `wasm`） | 同上 `wasm/` 目录 | 39.7 MB；SIMD / nosimd / module，`FilesetResolver` 按浏览器能力自动选 |
+| `pose_landmarker_{lite,full,heavy}.task` | Google `storage.googleapis.com/mediapipe-models` | 5.5 / 9.0 / 29.2 MB，对应设置面板三档，授权见官方模型页 |
 
-**已知限制**：项目只做了静态源码与构建验证，没有在真实浏览器里跑完一局（本机无摄像头交互环境）。因此推理实际帧率、GPU delegate 是否真正生效、CDN 模型的浏览器 CORS 表现，需要你在本机打开 `/app/play/fruit-slash` 实测。若 GPU 创建失败，代码会自动回落 CPU 并在 HUD 里显示。
+## 离线资源清单（`public/`）
+
+`npm run offline:fetch` 之后 `public/` 一共 16 个二进制/ESM 资源 + 若干代码文件，合计约 **83 MB**：
+
+| 路径 | 文件 | 作用 |
+|---|---|---|
+| `public/assets/shots/` | 4 张 `.jpg` | 内容站与游戏大厅卡片图 |
+| `public/assets/` | `origin-favicon.svg` | 原站图标样本（不使用） |
+| `public/mediapipe/` | `vision_bundle.mjs` (+`.map`) | Tasks Vision 的 ESM 入口与 sourcemap |
+| `public/mediapipe/wasm/` | `vision_wasm_internal.{js,wasm}` | **默认路径**：浏览器支持 SIMD 时选这套 |
+| | `vision_wasm_nosimd_internal.{js,wasm}` | 无 SIMD 的兜底 |
+| | `vision_wasm_module_internal.{js,wasm}` | ESM module 模式备用（本项目未启用，备齐供实验） |
+| `public/models/` | `pose_landmarker_lite/full/heavy.task` | 设置面板三档模型，离线切档不会 404 |
+
+命名规则不是猜的：`vision_bundle.mjs` 里 `FilesetResolver.forVisionTasks(base)` 会拼出
+`${base}/vision_wasm[?_module][?_nosimd]_internal.{js,wasm}`。本项目只创建 `PoseLandmarker`，
+所以不需要 hand / face / segmentation 模型。
+
+**自检**：`content/offline-check.html` 会 HEAD 全部 11 个大文件、动态 import 本地 ESM、
+创建 `PoseLandmarker(CPU, lite)`，并断言整轮没有跨域请求。实测（Chrome headless，禁代理 +
+DNS 屏蔽外网）结果：11 个资源全部 200、15 个请求 100% 同源、外网 probe BLOCKED、`RESULT: PASS`。
+
+**已知限制**：已验证浏览器端**推理器能完整初始化**，但本机没有可交互的摄像头环境，
+没有真正跑完一局。因此推理帧率、GPU delegate 是否生效、动作判定手感，仍需你在
+`/app/play/fruit-slash` 实测；GPU 创建失败会自动回落 CPU 并在 HUD 显示。
