@@ -19,8 +19,10 @@ import { modelUrl, WASM_BASE, VISION_MODULE_URL, type PoseModel } from './config
 import type { Point } from './landmarks';
 
 interface LandmarkerLike {
+  // Web 版 tasks-vision 的 PoseLandmarkerResult 用 landmarks，不是 poseLandmarks
+  // （后者是 Python/Dart 的命名）
   detectForVideo(video: HTMLVideoElement, timestampMs: number): {
-    poseLandmarks?: Array<Array<{ x: number; y: number; z: number; visibility?: number }>>;
+    landmarks?: Array<Array<{ x: number; y: number; z: number; visibility?: number }>>;
   };
   close(): void;
 }
@@ -110,7 +112,7 @@ export class PoseDetector {
     this.lastTs = ts;
     try {
       const result = this.landmarker.detectForVideo(video, ts);
-      return (result.poseLandmarks ?? []).map((person) =>
+      return (result.landmarks ?? []).map((person) =>
         person.map((p) => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 1 })),
       );
     } catch (err) {
