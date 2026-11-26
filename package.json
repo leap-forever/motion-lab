@@ -1,0 +1,26 @@
+{
+  "name": "motion-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "教学用净室复刻：浏览器端摄像头体感游戏的最小完整闭环",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "api": "node server/index.mjs",
+    "build": "tsc --noEmit && vite build",
+    "start": "node server/index.mjs",
+    "preview": "npm run build && npm run start",
+    "assets": "node scripts/fetch-assets.mjs",
+    "models": "node scripts/fetch-models.mjs"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0"
+  }
+}

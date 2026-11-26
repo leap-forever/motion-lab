@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion Lab · 浏览器端体感游戏实验台</title>
+<meta name="description" content="一个用于学习的净室复刻项目：摄像头 + MediaPipe WASM + Canvas 2D，画面不出本机。">
+<meta name="robots" content="index, follow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" as="image" href="/assets/shots/fruit-slash.jpg">
+
+<!-- 结构化数据：原站首页塞了 WebApplication / VideoObject / FAQPage / Breadcrumb /
+     WebSite / Organization 六类 JSON-LD。内容站是给搜索引擎和 AI 读的，
+     这层越「静态」越好，不依赖任何 JS 执行。 -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Motion Lab",
+ "description":"教学用浏览器端体感游戏实验台","url":"/","applicationCategory":"EducationalApplication",
+ "operatingSystem":"Chrome / Edge","offers":{"@type":"Offer","price":"0"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+ {"@type":"Question","name":"摄像头画面会上传吗？","acceptedAnswer":{"@type":"Answer","text":"不会。视频流只进入本机 video 元素与 canvas，姿态识别在浏览器 WASM 中完成，服务端只收到成绩数字。"}},
+ {"@type":"Question","name":"需要安装什么？","acceptedAnswer":{"@type":"Answer","text":"不用安装。首次打开会下载 MediaPipe WASM 与姿态模型，之后由 Service Worker 缓存，可离线运行。"}}]}
+</script>
+
+<!-- 预渲染规则：内容站预取应用页，减少从「看」到「玩」的白屏 -->
+<script type="speculationrules">
+{"prefetch":[{"where":{"href_matches":["/app","/app/check","/app/play/*"]},"eagerness":"moderate"}]}
+</script>
+
+<style>
+  :root{font-family:system-ui,"Microsoft YaHei",sans-serif;color:#1d2740;background:#f6f8fc}
+  *{box-sizing:border-box}body{margin:0}a{color:#3d6bff;text-decoration:none}
+  header{display:flex;gap:24px;align-items:center;padding:14px 28px;background:#fff;border-bottom:1px solid #e3e8f2}
+  .brand{font-weight:800;font-size:19px;color:#1d2740}.brand i{display:inline-block;width:12px;height:12px;border-radius:50%;background:#6bcb77;margin-right:8px}
+  header nav{margin-left:auto;display:flex;gap:20px;font-size:14px}
+  .wrap{max-width:1100px;margin:0 auto;padding:40px 28px 70px}
+  h1{font-size:42px;line-height:1.2;margin:0 0 14px}h2{font-size:22px;margin:40px 0 16px}
+  p{line-height:1.8;color:#4a5570}.lead{font-size:17px;max-width:720px}
+  .cta{display:inline-block;background:#3d6bff;color:#fff;font-weight:700;padding:12px 22px;border-radius:10px;margin:16px 10px 0 0}
+  .cta.sec{background:#fff;color:#3d6bff;border:1px solid #e3e8f2}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:18px}
+  .card{background:#fff;border:1px solid #e3e8f2;border-radius:14px;overflow:hidden}
+  .card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#e9eef7}
+  .card div{padding:14px 16px 18px}.card h3{margin:0 0 6px;font-size:16px}.card p{font-size:13px;margin:0}
+  .note{background:#fff;border:1px solid #e3e8f2;border-radius:14px;padding:20px 24px;line-height:1.9}
+  .note code{background:#e8eeff;padding:2px 6px;border-radius:5px}
+  footer{text-align:center;color:#66708a;font-size:12px;padding:20px;border-top:1px solid #e3e8f2}
+  @media(max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}h1{font-size:32px}}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/"><i></i>Motion Lab</a>
+  <nav><a href="/app">游戏大厅</a><a href="/app/check">设备检测</a><a href="/app/play/fruit-slash">直接开玩</a></nav>
+</header>
+
+<div class="wrap">
+  <h1>用摄像头玩的体感游戏，<br>全部推理都在你的浏览器里</h1>
+  <p class="lead">这是一个<strong>用于学习的净室复刻项目</strong>：把公开可观察的架构设计重新实现一遍 —— 静态内容站 + React PWA、MediaPipe WASM 姿态识别、帧节流、Canvas 2D 游戏、离线缓存与最小后端。代码全部自写并带注释。</p>
+  <a class="cta" href="/app">打开应用 →</a>
+  <a class="cta sec" href="/app/check">先检测设备</a>
+
+  <h2>示例游戏</h2>
+  <div class="grid">
+    <article class="card"><img src="/assets/shots/fruit-slash.jpg" alt="切水果"><div><h3>切水果</h3><p>挥手切开飞起的水果，别碰炸弹 · 已实现</p></div></article>
+    <article class="card"><img src="/assets/shots/jump-rope.jpg" alt="跳绳冠军"><div><h3>跳绳冠军</h3><p>脚部动作与节奏判定 · 仅作素材展示</p></div></article>
+    <article class="card"><img src="/assets/shots/soccer-kick.jpg" alt="足球射门"><div><h3>足球射门</h3><p>下肢关键点判定 · 仅作素材展示</p></div></article>
+    <article class="card"><img src="/assets/shots/bubble-pop.jpg" alt="戳泡泡"><div><h3>戳泡泡</h3><p>手部关键点判定 · 仅作素材展示</p></div></article>
+  </div>
+
+  <h2>这一层为什么是纯静态 HTML</h2>
+  <div class="note">
+    <p>原站把站点分成两层：<strong>内容页</strong>（首页、游戏介绍、指南、文章，共 249 个 URL、11 种语言）是<strong>构建时预生成的静态 HTML</strong>，专门给搜索引擎和 AI 读，几乎不加载 JS；<strong>应用页</strong>（<code>/start</code>、<code>/check</code>、<code>/play/*</code>）才是由 Vite 打包的 React PWA。</p>
+    <p>本项目的 <code>content/index.html</code> 就是前一层的缩小版：上面两段 JSON-LD、<code>speculationrules</code> 预取、卡片图片全部是写死在 HTML 里的，服务端直接读文件返回，<strong>不经过 Service Worker</strong>。点击「打开应用」才进入后一层。</p>
+    <p>好处：内容页首屏极快、可被完整索引；应用页独立发版、可以整包预缓存做离线。代价是两套页面要各自维护导航与多语言。</p>
+  </div>
+
+  <h2>隐私</h2>
+  <p>摄像头画面只进入本机 <code>&lt;video&gt;</code> 与 <code>canvas</code>，<code>audio:false</code>；姿态识别在浏览器 WASM 中完成。服务端只保存成绩数字、昵称与星级，不接收图像。</p>
+</div>
+
+<footer>教学项目 · 图片素材来自 dongdongpark.com，仅限本地学习使用，请勿再分发或商用</footer>
+</body>
+</html>

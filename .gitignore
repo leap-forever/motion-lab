@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/*.json
+*.part
+*.tmp
+.DS_Store
+.env
+.env.local
+# npm run models 下载的离线大模型（约 31MB），不入库
+public/models/
+public/mediapipe/

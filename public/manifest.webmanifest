@@ -1,0 +1,18 @@
+{
+  "id": "/app",
+  "name": "Motion Lab · 体感实验台",
+  "short_name": "Motion Lab",
+  "description": "教学用浏览器端体感游戏，摄像头画面不上传",
+  "lang": "zh-CN",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["window-controls-overlay", "fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#101a2c",
+  "theme_color": "#87ceeb",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "categories": ["education", "games", "health"]
+}
