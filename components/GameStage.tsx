@@ -44,7 +44,12 @@ const GameStage = forwardRef<GameStageHandle, Props>(function GameStage(
   }, []);
 
   useEffect(() => {
-    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    const onFs = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+      // 全屏改变的是舞台尺寸，不等到下一帧游戏循环：立即重算摄像头 cover 矩形
+      ctrlRef.current?.resize();
+      window.requestAnimationFrame(() => ctrlRef.current?.resize());
+    };
     document.addEventListener('fullscreenchange', onFs);
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);

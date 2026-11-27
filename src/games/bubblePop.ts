@@ -170,13 +170,6 @@ export class BubblePop implements Game {
       circle(ctx, w.x * LOGICAL_W, w.y * LOGICAL_H, 6, '#fff');
     }
 
-    roundRect(ctx, 24, 20, 250, 74, 18, '#ffffffcc');
-    outlinedText(ctx, `分数 ${this._score}`, 148, 56, 34, '#2b2140', '', 0);
-    roundRect(ctx, LOGICAL_W - 244, 20, 220, 74, 18, '#ffffffcc');
-    outlinedText(ctx, `${Math.ceil(this.timeLeft)} 秒`, LOGICAL_W - 134, 56, 34, '#2b2140', '', 0);
-    if (this._combo >= 2) outlinedText(ctx, `连戳 ×${this._combo}`, LOGICAL_W / 2, 120, 46, '#ff8c42');
-    if (this.feedback) outlinedText(ctx, this.feedback, LOGICAL_W / 2, 190, 38, '#fff', '#2b2140');
-
     if (this.flash > 0) {
       ctx.fillStyle = `rgba(255,70,70,${this.flash * 0.35})`;
       ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
@@ -184,6 +177,17 @@ export class BubblePop implements Game {
     if (this.finished) {
       ctx.fillStyle = '#101a2ccc';
       ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    }
+
+    // HUD 用视口内安全区，避免全屏裁剪时贴边元素被切掉
+    stage.beginHud();
+    roundRect(ctx, 24, 20, 250, 74, 18, '#ffffffcc');
+    outlinedText(ctx, `分数 ${this._score}`, 148, 56, 34, '#2b2140', '', 0);
+    roundRect(ctx, LOGICAL_W - 244, 20, 220, 74, 18, '#ffffffcc');
+    outlinedText(ctx, `${Math.ceil(this.timeLeft)} 秒`, LOGICAL_W - 134, 56, 34, '#2b2140', '', 0);
+    if (this._combo >= 2) outlinedText(ctx, `连戳 ×${this._combo}`, LOGICAL_W / 2, 120, 46, '#ff8c42');
+    if (this.feedback) outlinedText(ctx, this.feedback, LOGICAL_W / 2, 190, 38, '#fff', '#2b2140');
+    if (this.finished) {
       outlinedText(ctx, '时间到！', LOGICAL_W / 2, 280, 78, '#fff', '#2b2140');
       outlinedText(ctx, `本局 ${this._score} 分`, LOGICAL_W / 2, 380, 52, '#ffd93d', '#2b2140');
     }

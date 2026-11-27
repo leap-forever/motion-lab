@@ -10,6 +10,7 @@
  *   游戏渲染仍跟 rAF 走，画面不会因为推理慢而掉帧。
  *
  * 暂停只停 rAF 与游戏时钟，不释放摄像头 / WASM 模型，恢复时无需重新授权或加载。
+ * 舞台尺寸或摄像头分辨率变化时，同步给 Stage 以重算背景 cover 矩形。
  */
 import { openCamera, measureFps, probeSimd, probeWebGL2, type CameraHandle } from './camera';
 import { FrameGate } from './frameGate';
@@ -104,6 +105,9 @@ export class PlayController {
   private pausedAt = 0;
   /** 累计暂停时长：游戏用的 frame.now 要扣掉它，冷却窗口才不会在恢复时失效 */
   private pausedTotal = 0;
+  private syncVideoSize = (): void => {
+    this.stage?.setVideoSize(this.video.videoWidth, this.video.videoHeight);
+  };
 
   constructor(opts: {
     canvas: HTMLCanvasElement;
@@ -123,6 +127,11 @@ export class PlayController {
 
   get isPaused(): boolean { return this.paused; }
 
+  /** 全屏切换 / 外部布局变化时强制重算一次，不等 ResizeObserver */
+  resize(): void {
+    this.syncVideoSize();
+  }
+
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
@@ -135,6 +144,8 @@ export class PlayController {
     this.features = { ...EMPTY_FEATURES };
     this.persons = [];
     this.inferWindow = [];
+    this.video.addEventListener('loadedmetadata', this.syncVideoSize);
+    this.video.addEventListener('resize', this.syncVideoSize);
     const say = (message: string) => this.onState({ phase: 'loading', message });
 
     try {
@@ -158,6 +169,7 @@ export class PlayController {
       this.onState({ delegate: this.detector.delegate || 'CPU', poseModel: this.settings.model });
 
       this.stage = new Stage(this.canvas);
+      this.syncVideoSize();
       this.game = createGame(this.gameId);
       this.gate.reset();
       this.tracker.reset();
@@ -328,6 +340,8 @@ export class PlayController {
     this.inferWindow = [];
     this.tracker.reset();
     this.gate.reset();
+    this.video.removeEventListener('loadedmetadata', this.syncVideoSize);
+    this.video.removeEventListener('resize', this.syncVideoSize);
     this.cam?.stop();
     this.cam = null;
     this.detector.close();
