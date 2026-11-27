@@ -10,6 +10,7 @@ import { LOGICAL_H, LOGICAL_W, type Stage } from '../lib/stage';
 import { LM, POSE_EDGES, visible, type Point } from '../lib/landmarks';
 import { HIT } from '../lib/config';
 import { hitRadius, segmentCircleHit, toWorld } from '../lib/hit';
+import { drawBackdrop, type AvatarRenderer } from '../lib/avatar';
 import type { Game, GameFrame } from './types';
 
 interface Bubble {
@@ -55,6 +56,8 @@ export class BubblePop implements Game {
   private flash = 0;
   /** 每只手已结算过的推理帧序号：防止手停在泡泡群上逐帧刷分 */
   private lastPopSeq: [number, number] = [-1, -1];
+  /** 当前替身渲染器（avatar 模式时非 null），update 记录、draw 使用 */
+  private avatar: AvatarRenderer | null = null;
 
   private showSkeletonFlag = false;
   private lastPoints: Point[][] = [];
@@ -96,6 +99,7 @@ export class BubblePop implements Game {
     this.showSkeletonFlag = f.showSkeleton;
     this.lastPoints = f.points;
     this.lastWrists = f.features.wrist;
+    this.avatar = f.avatar;
     this.elapsed += dt;
     this.feedbackLeft -= dt;
     this.flash = Math.max(0, this.flash - dt * 3);
@@ -149,6 +153,12 @@ export class BubblePop implements Game {
   draw(stage: Stage): void {
     const ctx = stage.begin();
 
+    // 替身模式：自绘背景 + 关键点驱动的小人（判定坐标不变）
+    if (this.avatar) {
+      drawBackdrop(ctx);
+      this.avatar.draw(ctx);
+    }
+
     // 背景为下层摄像头视频，仅加一层很淡的冷色调，让泡泡更突出
     ctx.fillStyle = 'rgba(160,233,255,0.12)';
     ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
@@ -159,7 +169,8 @@ export class BubblePop implements Game {
     }
     this.particles.draw(ctx);
 
-    if (this.showSkeletonFlag) {
+    // 骨架（调试；替身模式下替身本身就是骨架的可视化，不重复画）
+    if (this.showSkeletonFlag && !this.avatar) {
       const person = this.lastPoints[0];
       if (person) {
         ctx.strokeStyle = '#2b214088'; ctx.lineWidth = 5; ctx.lineCap = 'round';

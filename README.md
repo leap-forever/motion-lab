@@ -112,7 +112,15 @@ Stage.begin() → Canvas 2D → Stage.end()
 `src/lib/hit.ts` 集中了全部几何，`src/lib/config.ts` 的 `HIT` 集中了容差与 sprite 缩放；
 设置面板的「命中判定」可在**宽松**（默认，判定半径 = r + 随躯干缩放的容差）
 与**与视觉一致**（严格等于 sprite 视觉半径）之间切换，方便真机 A/B 对比手感。
-`npm run test` 覆盖这些纯函数。
+`npm run test` 覆盖这些纯函数（vitest 5.1.2）。注意**不要**加 `vitest.config.ts`：
+Windows + vitest 5.1.2 下一旦在配置里写了 `test.include`，收集阶段会稳定崩溃
+（`runner.config` 取到 undefined 的 TypeError）；默认的 `**/*.test.ts` 扫描对本项目
+已完全够用，等上游修复后再考虑显式配置。
+
+「画面」设置里可切到**卡通替身**模式：摄像头画面退成右上角画中画（可关），
+画面改成关键点驱动的小人（`src/lib/avatar.ts`，两级平滑：推理帧 EMA + 渲染帧追赶插值）。
+替身只影响渲染——判定仍吃原始关键点，坐标也不变，所以手和替身的手天然重合；
+替身模式下骨架调试自动隐藏（替身本身就是骨架的可视化）。
 
 **最值得读的三个文件**：`src/lib/frameGate.ts`（采集时钟 ≠ 渲染时钟 ≠ 推理时钟）、`src/lib/features.ts`（为什么所有位移都要除以躯干长度）、`public/sw.js`（离线策略）。
 
@@ -164,8 +172,9 @@ Service Worker / 浏览器缓存着。它们不计数、不落盘、不返回 40
 4. `src/lib/landmarks.ts` → `features.ts` → `framing.ts`（从坐标到「动作」）
 5. `src/lib/controller.ts` → rAF 主循环怎么把上面全串起来
 6. `src/lib/hit.ts` + `hit.test.ts` → 命中判定的几何与两档半径，以及为什么能单测
-7. `src/games/fruitSlash.ts` → `stage.ts` / `draw.ts`（纯 Canvas 2D 游戏）
-8. `public/sw.js` → 离线与版本迁移
+7. `src/lib/avatar.ts` + `avatar.test.ts` → 卡通替身：渲染平滑与判定数据的分离
+8. `src/games/fruitSlash.ts` → `stage.ts` / `draw.ts`（纯 Canvas 2D 游戏）
+9. `public/sw.js` → 离线与版本迁移
 
 ---
 

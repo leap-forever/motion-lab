@@ -11,6 +11,7 @@ import { LOGICAL_H, LOGICAL_W, type Stage } from '../lib/stage';
 import { POSE_EDGES, type Point } from '../lib/landmarks';
 import { HIT } from '../lib/config';
 import { hitRadius, segmentCircleHit, toWorld } from '../lib/hit';
+import { drawBackdrop, type AvatarRenderer } from '../lib/avatar';
 import type { Game, GameFrame } from './types';
 
 interface Item {
@@ -72,6 +73,8 @@ export class FruitSlash implements Game {
   private flash = 0;
   /** 已结算过的推理帧序号，替代原来的 110ms 时间冷却 */
   private lastSlashSeq = -1;
+  /** 当前替身渲染器（avatar 模式时非 null），update 记录、draw 使用 */
+  private avatar: AvatarRenderer | null = null;
 
   constructor() {
     this.sprites = FRUITS.map((f) => makeFruitSprite(f.color, f.emoji));
@@ -110,6 +113,7 @@ export class FruitSlash implements Game {
     this.showSkeletonFlag = f.showSkeleton;
     this.lastPoints = f.points;
     this.lastWrists = f.features.wrist;
+    this.avatar = f.avatar;
     this.elapsed += dt;
     this.feedbackLeft -= dt;
     this.flash = Math.max(0, this.flash - dt * 3);
@@ -168,6 +172,12 @@ export class FruitSlash implements Game {
   draw(stage: Stage): void {
     const ctx = stage.begin();
 
+    // 替身模式：自绘背景 + 关键点驱动的小人（判定坐标不变，手与替身的手重合）
+    if (this.avatar) {
+      drawBackdrop(ctx);
+      this.avatar.draw(ctx);
+    }
+
     // 背景为下层摄像头视频，这里不再画不透明天/地
     // 轻微暗角，让水果和文字更清晰
     const vignette = ctx.createRadialGradient(LOGICAL_W / 2, LOGICAL_H / 2, 200, LOGICAL_W / 2, LOGICAL_H / 2, 820);
@@ -182,8 +192,8 @@ export class FruitSlash implements Game {
     }
     this.particles.draw(ctx);
 
-    // 骨架（调试用，设置里可关）
-    if (this.showSkeletonFlag) {
+    // 骨架（调试用，设置里可关；替身模式下替身就是骨架的可视化，不重复画）
+    if (this.showSkeletonFlag && !this.avatar) {
       const person = this.lastPoints[0];
       if (person) {
         ctx.strokeStyle = '#ffffffcc'; ctx.lineWidth = 5; ctx.lineCap = 'round';

@@ -118,7 +118,19 @@ const GameStage = forwardRef<GameStageHandle, Props>(function GameStage(
   return (
     <div className="stage-wrap" ref={stageRef}>
       <canvas ref={canvasRef} className="game-canvas" />
-      <video ref={videoRef} className="cam-bg" autoPlay muted playsInline />
+      <video
+        ref={videoRef}
+        className={[
+          'cam-bg',
+          // 替身模式：pip 开 → 缩成右上角小窗；pip 关 → 完全隐藏。
+          // 世界层映射基于 canvas 矩形 + 视频宽高（stage.resize），不受本元素 CSS 缩放影响，
+          // 所以只切样式就能换形态，坐标判定完全不动。
+          settings.avatarMode ? (settings.pip ? 'cam-bg-pip' : 'cam-bg-off') : '',
+        ].filter(Boolean).join(' ')}
+        autoPlay
+        muted
+        playsInline
+      />
       <div className="cam-label">本地画面 · 不上传</div>
       <div className="stage-actions">
         {canPause && (

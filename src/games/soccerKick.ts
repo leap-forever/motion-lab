@@ -9,6 +9,7 @@ import { LOGICAL_H, LOGICAL_W, type Stage } from '../lib/stage';
 import { LM, POSE_EDGES, visible, type Point } from '../lib/landmarks';
 import { HIT } from '../lib/config';
 import { hitRadius, insideRect, segmentCircleHit, toWorld } from '../lib/hit';
+import { drawBackdrop, type AvatarRenderer } from '../lib/avatar';
 import type { Game, GameFrame } from './types';
 
 interface Ball {
@@ -49,6 +50,8 @@ export class SoccerKick implements Game {
 
   private showSkeletonFlag = false;
   private lastPoints: Point[][] = [];
+  /** 当前替身渲染器（avatar 模式时非 null），update 记录、draw 使用 */
+  private avatar: AvatarRenderer | null = null;
 
   constructor() {
     this.ballSprite = makeBallSprite();
@@ -82,6 +85,7 @@ export class SoccerKick implements Game {
     const dt = f.dt;
     this.showSkeletonFlag = f.showSkeleton;
     this.lastPoints = f.points;
+    this.avatar = f.avatar;
     this.elapsed += dt;
     this.feedbackLeft -= dt;
     this.particles.update(dt);
@@ -143,6 +147,12 @@ export class SoccerKick implements Game {
   draw(stage: Stage): void {
     const ctx = stage.begin();
 
+    // 替身模式：自绘背景 + 关键点驱动的小人（判定坐标不变）
+    if (this.avatar) {
+      drawBackdrop(ctx);
+      this.avatar.draw(ctx);
+    }
+
     // 背景为下层摄像头视频；画半透明地面与球场参考线
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillRect(0, GROUND_Y, LOGICAL_W, LOGICAL_H - GROUND_Y);
@@ -166,7 +176,8 @@ export class SoccerKick implements Game {
     }
     this.particles.draw(ctx);
 
-    if (this.showSkeletonFlag) {
+    // 骨架（调试；替身模式下替身本身就是骨架的可视化，不重复画）
+    if (this.showSkeletonFlag && !this.avatar) {
       const person = this.lastPoints[0];
       if (person) {
         ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = 5; ctx.lineCap = 'round';

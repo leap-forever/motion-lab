@@ -90,6 +90,9 @@ p { line-height: 1.7; }
 .hud-chips span { font-size: 12px; background: var(--accent-soft); color: #2d4ba8; padding: 5px 10px; border-radius: 999px; }
 .stage-wrap { position: relative; margin-top: 14px; border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px #1d274022; background: #000; }
 .cam-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #000; z-index: 0; }
+/* 卡通替身模式：摄像头缩成右上角画中画（仍在供推理），或完全隐藏 */
+.cam-bg-pip { inset: auto; top: 14px; right: 14px; width: 22%; height: auto; aspect-ratio: 16 / 9; border-radius: 10px; border: 2px solid #ffffffcc; box-shadow: 0 6px 18px #00000088; z-index: 2; }
+.cam-bg-off { opacity: 0; }
 .game-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; position: relative; z-index: 1; }
 .cam-label { position: absolute; left: 14px; top: 14px; z-index: 2; font-size: 11px; color: #fff; background: #101a2caa; padding: 3px 8px; border-radius: 6px; }
 .overlay { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: #101a2cbb; backdrop-filter: blur(3px); padding: 18px; }

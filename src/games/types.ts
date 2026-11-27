@@ -1,3 +1,4 @@
+import type { AvatarRenderer } from '../lib/avatar';
 import type { HitMode } from '../lib/config';
 import type { BodyFeatures } from '../lib/features';
 import type { Point } from '../lib/landmarks';
@@ -26,6 +27,8 @@ export interface GameFrame {
   hitMode: HitMode;
   /** 上一推理帧的第 0 人骨架（已镜像）；线段扫掠靠它消除低帧率隧穿 */
   prevPerson: Point[] | null;
+  /** 卡通替身渲染器；avatar 模式开启时非 null，游戏在 draw 里画背景 + 替身 */
+  avatar: AvatarRenderer | null;
   showSkeleton: boolean;
 }
 

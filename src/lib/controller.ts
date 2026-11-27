@@ -13,6 +13,7 @@
  * 舞台尺寸或摄像头分辨率变化时，同步给 Stage 以重算背景 cover 矩形。
  */
 import { openCamera, measureFps, probeSimd, probeWebGL2, type CameraHandle } from './camera';
+import { AvatarRenderer } from './avatar';
 import { FrameGate } from './frameGate';
 import { PoseDetector } from './vision';
 import { MotionTracker, slashHits, EMPTY_FEATURES, type BodyFeatures } from './features';
@@ -31,10 +32,15 @@ export interface Settings {
   numPoses: number;
   /** 命中判定模式，开局前可在设置面板切换 */
   hitMode: HitMode;
+  /** 卡通替身模式：隐藏摄像头画面，用关键点驱动小人（判定不受影响） */
+  avatarMode: boolean;
+  /** 替身模式下的画中画小窗（摄像头缩略图），默认开 */
+  pip: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   model: 'lite', targetFps: 24, showSkeleton: true, numPoses: 2, hitMode: 'legacy',
+  avatarMode: false, pip: true,
 };
 
 const SETTINGS_KEY = 'motion-lab:settings';
@@ -107,6 +113,8 @@ export class PlayController {
   private prevPerson: Point[] | null = null;
   /** 挥手点缓存，只在推理帧重算，非推理帧沿用 */
   private slashes: Slash[] = [];
+  /** 卡通替身渲染器：只在 avatar 模式下喂给游戏（判定不吃它的平滑结果） */
+  private avatar = new AvatarRenderer();
   private sampleCanvas: HTMLCanvasElement | null = null;
   private running = false;
   private paused = false;
@@ -184,6 +192,7 @@ export class PlayController {
       this.game = createGame(this.gameId);
       this.gate.reset();
       this.tracker.reset();
+      this.avatar.reset();
       this.attachFrameClock();
 
       this.onState({ phase: 'running', message: '就绪，挥手切水果！' });
@@ -237,6 +246,8 @@ export class PlayController {
       this.poseSeq += 1;
       this.slashes = slashHits(this.features, prev);
       this.prevPerson = prev;
+      // 替身只吃渲染用的平滑，判定继续用原始关键点
+      this.avatar.push(this.persons, dtInfer);
       this.inferWindow.push(now);
     }
 
@@ -258,6 +269,7 @@ export class PlayController {
       poseSeq: this.poseSeq,
       hitMode: this.settings.hitMode,
       prevPerson: this.prevPerson,
+      avatar: this.settings.avatarMode ? this.avatar : null,
       showSkeleton: this.settings.showSkeleton,
     });
     this.game.draw(this.stage);
@@ -301,6 +313,8 @@ export class PlayController {
     // 线段起点与挥手缓存也一并清空，否则恢复首帧会拉出一条横跨暂停时长的假扫掠
     this.prevPerson = null;
     this.slashes = [];
+    // 替身也清掉：恢复首帧从新姿态淡入，而不是把暂停前的位置甩过去
+    this.avatar.reset();
     this.gate.reset();
     this.onState({
       phase: 'paused', message: '游戏已暂停',
@@ -364,6 +378,7 @@ export class PlayController {
     this.poseSeq = 0;
     this.prevPerson = null;
     this.slashes = [];
+    this.avatar.reset();
     this.tracker.reset();
     this.gate.reset();
     this.video.removeEventListener('loadedmetadata', this.syncVideoSize);

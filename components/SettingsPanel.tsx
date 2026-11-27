@@ -64,6 +64,22 @@ export default function SettingsPanel({ value, onChange, disabled }: Props) {
         <small>宽松模式在物体半径外留手势容差，且随站远站近缩放；「与视觉一致」严格按画面上的大小判定，命中更难</small>
       </label>
 
+      <label>
+        画面
+        <select disabled={disabled} value={value.avatarMode ? 'avatar' : 'camera'}
+          onChange={(e) => set('avatarMode', e.target.value === 'avatar')}>
+          <option value="camera">摄像头画面（默认）</option>
+          <option value="avatar">卡通替身</option>
+        </select>
+        <small>卡通替身用关键点驱动小人，摄像头只提供动作；判定与得分不受影响</small>
+      </label>
+
+      <label className="check">
+        <input disabled={disabled} type="checkbox" checked={value.pip}
+          onChange={(e) => set('pip', e.target.checked)} />
+        替身模式显示画中画小窗
+      </label>
+
       <label className="check">
         <input disabled={disabled} type="checkbox" checked={value.showSkeleton}
           onChange={(e) => set('showSkeleton', e.target.checked)} />

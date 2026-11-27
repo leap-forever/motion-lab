@@ -7,6 +7,7 @@
 import { circle, outlinedText, Particles, roundRect } from '../lib/draw';
 import { LOGICAL_H, LOGICAL_W, type Stage } from '../lib/stage';
 import { POSE_EDGES, type Point } from '../lib/landmarks';
+import { drawBackdrop, type AvatarRenderer } from '../lib/avatar';
 import type { Game, GameFrame } from './types';
 
 export class JumpRope implements Game {
@@ -32,6 +33,8 @@ export class JumpRope implements Game {
 
   private showSkeletonFlag = false;
   private lastPoints: Point[][] = [];
+  /** 当前替身渲染器（avatar 模式时非 null），update 记录、draw 使用 */
+  private avatar: AvatarRenderer | null = null;
 
   get score() { return this._score; }
   get combo() { return this._combo; }
@@ -46,6 +49,7 @@ export class JumpRope implements Game {
     const dt = f.dt;
     this.showSkeletonFlag = f.showSkeleton;
     this.lastPoints = f.points;
+    this.avatar = f.avatar;
     this.elapsed += dt;
     this.feedbackLeft -= dt;
     this.flash = Math.max(0, this.flash - dt * 3);
@@ -87,6 +91,12 @@ export class JumpRope implements Game {
   draw(stage: Stage): void {
     const ctx = stage.begin();
 
+    // 替身模式：自绘背景 + 关键点驱动的小人（判定逻辑不变）
+    if (this.avatar) {
+      drawBackdrop(ctx);
+      this.avatar.draw(ctx);
+    }
+
     // 背景为下层摄像头视频；在脚下画一条半透明地面参考线
     const groundY = Math.min(LOGICAL_H - 1, this.cy + this.ropeR);
     if (groundY < LOGICAL_H) {
@@ -96,8 +106,8 @@ export class JumpRope implements Game {
       ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(LOGICAL_W, groundY); ctx.stroke();
     }
 
-    // 玩家骨架
-    if (this.showSkeletonFlag) {
+    // 玩家骨架（替身模式下替身本身就是骨架的可视化，不重复画）
+    if (this.showSkeletonFlag && !this.avatar) {
       const person = this.lastPoints[0];
       if (person) {
         ctx.strokeStyle = '#ffffffcc'; ctx.lineWidth = 5; ctx.lineCap = 'round';
@@ -110,7 +120,7 @@ export class JumpRope implements Game {
           ctx.stroke();
         }
       }
-    } else {
+    } else if (!this.avatar) {
       circle(ctx, this.cx, this.cy, 40, '#ffffff44', '#fff', 3);
     }
 
