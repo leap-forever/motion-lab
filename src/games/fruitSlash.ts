@@ -9,6 +9,8 @@
 import { circle, drawSprite, makeSprite, outlinedText, Particles, roundRect } from '../lib/draw';
 import { LOGICAL_H, LOGICAL_W, type Stage } from '../lib/stage';
 import { POSE_EDGES, type Point } from '../lib/landmarks';
+import { HIT } from '../lib/config';
+import { hitRadius, segmentCircleHit, toWorld } from '../lib/hit';
 import type { Game, GameFrame } from './types';
 
 interface Item {
@@ -68,7 +70,8 @@ export class FruitSlash implements Game {
   private _feedback = '';
   private feedbackLeft = 0;
   private flash = 0;
-  private lastSlashAt = 0;
+  /** 已结算过的推理帧序号，替代原来的 110ms 时间冷却 */
+  private lastSlashSeq = -1;
 
   constructor() {
     this.sprites = FRUITS.map((f) => makeFruitSprite(f.color, f.emoji));
@@ -132,15 +135,16 @@ export class FruitSlash implements Game {
     }
     this.items = this.items.filter((it) => it.alive);
 
-    // 挥手判定：一次高速挥动只算一次，避免同一帧连切好几个
-    if (f.slashes.length && f.now - this.lastSlashAt > 110) {
+    // 挥手判定：同一推理姿态只结算一次，避免它在多个 rAF 帧里连切好几个
+    if (f.slashes.length && f.poseSeq !== this.lastSlashSeq) {
       for (const s of f.slashes) {
-        const hx = s.x * LOGICAL_W;
-        const hy = s.y * LOGICAL_H;
+        const to = toWorld(s);
+        const from = s.from ? toWorld(s.from) : to;
         let hit = false;
         for (const it of this.items) {
           if (!it.alive) continue;
-          if (Math.hypot(it.x - hx, it.y - hy) > it.r + 74) continue;
+          const radius = hitRadius(it.r, HIT.fruitSlash, f.features.torso, f.hitMode);
+          if (!segmentCircleHit(from, to, { x: it.x, y: it.y }, radius)) continue;
           it.alive = false;
           hit = true;
           this.particles.burst(it.x, it.y, it.color, it.bomb ? 20 : 14);
@@ -156,7 +160,7 @@ export class FruitSlash implements Game {
           }
           break;
         }
-        if (hit) { this.lastSlashAt = f.now; break; }
+        if (hit) { this.lastSlashSeq = f.poseSeq; break; }
       }
     }
   }
@@ -173,7 +177,8 @@ export class FruitSlash implements Game {
     ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
     for (const it of this.items) {
-      drawSprite(ctx, it.sprite, it.x, it.y, it.r * 2.4, it.r * 2.4, it.rot);
+      drawSprite(ctx, it.sprite, it.x, it.y,
+        it.r * HIT.fruitSlash.spriteScale, it.r * HIT.fruitSlash.spriteScale, it.rot);
     }
     this.particles.draw(ctx);
 

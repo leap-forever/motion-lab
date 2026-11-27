@@ -19,9 +19,9 @@ import { MotionTracker, slashHits, EMPTY_FEATURES, type BodyFeatures } from './f
 import { mirrored, type Point } from './landmarks';
 import { analyseLighting, checkFraming } from './framing';
 import { Stage } from './stage';
-import type { PoseModel } from './config';
+import type { HitMode, PoseModel } from './config';
 import { createGame } from '../games';
-import type { Game } from '../games/types';
+import type { Game, Slash } from '../games/types';
 
 export interface Settings {
   model: PoseModel;
@@ -29,10 +29,12 @@ export interface Settings {
   showSkeleton: boolean;
   cameraId?: string;
   numPoses: number;
+  /** 命中判定模式，开局前可在设置面板切换 */
+  hitMode: HitMode;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  model: 'lite', targetFps: 24, showSkeleton: true, numPoses: 2,
+  model: 'lite', targetFps: 24, showSkeleton: true, numPoses: 2, hitMode: 'legacy',
 };
 
 const SETTINGS_KEY = 'motion-lab:settings';
@@ -99,6 +101,12 @@ export class PlayController {
   private features: BodyFeatures = { ...EMPTY_FEATURES };
   private persons: Point[][] = [];
   private inferWindow: number[] = [];
+  /** 推理帧序号：同一姿态会被多个 rAF 帧复用，游戏用它做命中去重 */
+  private poseSeq = 0;
+  /** 上一推理帧的第 0 人骨架，用于线段扫掠；暂停后清空 */
+  private prevPerson: Point[] | null = null;
+  /** 挥手点缓存，只在推理帧重算，非推理帧沿用 */
+  private slashes: Slash[] = [];
   private sampleCanvas: HTMLCanvasElement | null = null;
   private running = false;
   private paused = false;
@@ -144,6 +152,9 @@ export class PlayController {
     this.features = { ...EMPTY_FEATURES };
     this.persons = [];
     this.inferWindow = [];
+    this.poseSeq = 0;
+    this.prevPerson = null;
+    this.slashes = [];
     this.video.addEventListener('loadedmetadata', this.syncVideoSize);
     this.video.addEventListener('resize', this.syncVideoSize);
     const say = (message: string) => this.onState({ phase: 'loading', message });
@@ -217,10 +228,15 @@ export class PlayController {
     if (this.gate.due(now, this.settings.targetFps)) {
       const dtInfer = Math.max(0.001, (now - this.lastInfer) / 1000);
       this.lastInfer = now;
+      // 覆盖 persons 之前先留一份：它是上一次推理的骨架，本帧线段判定的起点
+      const prev = this.persons[0] ?? null;
       const raw = this.detector.detect(this.video, now);
       // 自拍镜像：玩家往左挥，屏幕上的手也往左
       this.persons = raw.map(mirrored);
       this.features = this.tracker.push(this.persons[0] ?? null, dtInfer);
+      this.poseSeq += 1;
+      this.slashes = slashHits(this.features, prev);
+      this.prevPerson = prev;
       this.inferWindow.push(now);
     }
 
@@ -237,7 +253,11 @@ export class PlayController {
       dt, now: gameNow,
       features: this.features,
       points: this.persons,
-      slashes: slashHits(this.features),
+      // 挥手点与线段起点只在推理帧更新；非推理帧沿用同一份，由 poseSeq 去重
+      slashes: this.slashes,
+      poseSeq: this.poseSeq,
+      hitMode: this.settings.hitMode,
+      prevPerson: this.prevPerson,
       showSkeleton: this.settings.showSkeleton,
     });
     this.game.draw(this.stage);
@@ -278,6 +298,9 @@ export class PlayController {
     this.features = { ...EMPTY_FEATURES };
     this.persons = [];
     this.inferWindow = [];
+    // 线段起点与挥手缓存也一并清空，否则恢复首帧会拉出一条横跨暂停时长的假扫掠
+    this.prevPerson = null;
+    this.slashes = [];
     this.gate.reset();
     this.onState({
       phase: 'paused', message: '游戏已暂停',
@@ -338,6 +361,9 @@ export class PlayController {
     this.features = { ...EMPTY_FEATURES };
     this.persons = [];
     this.inferWindow = [];
+    this.poseSeq = 0;
+    this.prevPerson = null;
+    this.slashes = [];
     this.tracker.reset();
     this.gate.reset();
     this.video.removeEventListener('loadedmetadata', this.syncVideoSize);

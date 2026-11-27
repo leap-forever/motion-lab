@@ -6,7 +6,9 @@
  */
 import { circle, drawSprite, makeSprite, outlinedText, Particles, roundRect } from '../lib/draw';
 import { LOGICAL_H, LOGICAL_W, type Stage } from '../lib/stage';
-import { LM, POSE_EDGES, type Point } from '../lib/landmarks';
+import { LM, POSE_EDGES, visible, type Point } from '../lib/landmarks';
+import { HIT } from '../lib/config';
+import { hitRadius, insideRect, segmentCircleHit, toWorld } from '../lib/hit';
 import type { Game, GameFrame } from './types';
 
 interface Ball {
@@ -18,6 +20,9 @@ const GOAL_X = 96;
 const GOAL_TOP = 280;
 const GOAL_BOTTOM = 500;
 const GROUND_Y = 560;
+
+/** 有效击球点：两只脚踝 + 鼻子（不能用手） */
+const JOINT_IDS = [LM.leftAnkle, LM.rightAnkle, LM.nose] as const;
 
 function makeBallSprite(): HTMLCanvasElement {
   return makeSprite(128, 128, (c) => {
@@ -88,10 +93,6 @@ export class SoccerKick implements Game {
     }
 
     const person = f.points[0];
-    // 脚踝 + 鼻子作为有效击球点（不能用手）
-    const joints: Array<Point | undefined> = person
-      ? [person[LM.leftAnkle], person[LM.rightAnkle], person[LM.nose]]
-      : [];
 
     for (const b of this.items) {
       if (!b.alive) continue;
@@ -103,11 +104,14 @@ export class SoccerKick implements Game {
 
       // 击球：把球推向左侧球门上方
       if (!b.hit) {
-        for (const j of joints) {
+        for (const idx of JOINT_IDS) {
+          const j = person?.[idx];
           if (!j) continue;
-          const jx = j.x * LOGICAL_W;
-          const jy = j.y * LOGICAL_H;
-          if (Math.hypot(b.x - jx, b.y - jy) > b.r + 44) continue;
+          const to = toWorld(j);
+          const prev = f.prevPerson?.[idx];
+          const from = prev && visible(prev) ? toWorld(prev) : to;
+          const radius = hitRadius(b.r, HIT.soccerKick, f.features.torso, f.hitMode);
+          if (!segmentCircleHit(from, to, { x: b.x, y: b.y }, radius)) continue;
           b.hit = true;
           b.vx = -700;
           b.vy = -260 - Math.random() * 80;
@@ -117,8 +121,9 @@ export class SoccerKick implements Game {
         }
       }
 
-      // 进球判定
-      if (b.hit && !b.scored && b.x < GOAL_X + 20 && b.y > GOAL_TOP && b.y < GOAL_BOTTOM) {
+      // 进球判定：球心落在球门矩形内（省略左边，保持与原来一致）
+      if (b.hit && !b.scored
+        && insideRect({ x: b.x, y: b.y }, { right: GOAL_X + 20, top: GOAL_TOP, bottom: GOAL_BOTTOM })) {
         b.scored = true;
         b.alive = false;
         this._combo += 1;
@@ -156,7 +161,8 @@ export class SoccerKick implements Game {
     ctx.fillRect(GOAL_X, GOAL_TOP, 120, GOAL_BOTTOM - GOAL_TOP);
 
     for (const b of this.items) {
-      drawSprite(ctx, this.ballSprite, b.x, b.y, b.r * 2.2, b.r * 2.2, b.rot);
+      drawSprite(ctx, this.ballSprite, b.x, b.y,
+        b.r * HIT.soccerKick.spriteScale, b.r * HIT.soccerKick.spriteScale, b.rot);
     }
     this.particles.draw(ctx);
 

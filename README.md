@@ -99,11 +99,20 @@ PoseLandmarker.detectForVideo(video, 单调递增时间戳)
 33 关键点 → 镜像 → 除以躯干长度归一化 → MotionTracker 指数平滑
    ▼
 slashHits() / checkFraming() / analyseLighting()
+   │  poseSeq + prevPerson：推理帧序号与上一帧骨架，用于线段扫掠和命中去重
    ▼
-FruitSlash.update(dt) → Stage.begin() → Canvas 2D → Stage.end()
+hit.ts（点/线段-圆、矩形包含、躯干缩放容差）→ FruitSlash.update(dt)
+   ▼
+Stage.begin() → Canvas 2D → Stage.end()
    ▼
 结算 → POST /api/scores → 榜单（只回昵称）
 ```
+
+命中判定没有用物理引擎：关键点被当作采样点，物体是圆，判定是「线段扫过圆」。
+`src/lib/hit.ts` 集中了全部几何，`src/lib/config.ts` 的 `HIT` 集中了容差与 sprite 缩放；
+设置面板的「命中判定」可在**宽松**（默认，判定半径 = r + 随躯干缩放的容差）
+与**与视觉一致**（严格等于 sprite 视觉半径）之间切换，方便真机 A/B 对比手感。
+`npm run test` 覆盖这些纯函数。
 
 **最值得读的三个文件**：`src/lib/frameGate.ts`（采集时钟 ≠ 渲染时钟 ≠ 推理时钟）、`src/lib/features.ts`（为什么所有位移都要除以躯干长度）、`public/sw.js`（离线策略）。
 
@@ -154,8 +163,9 @@ Service Worker / 浏览器缓存着。它们不计数、不落盘、不返回 40
 3. `src/lib/camera.ts` → `frameGate.ts` → `vision.ts`（采集与推理是怎么解耦的）
 4. `src/lib/landmarks.ts` → `features.ts` → `framing.ts`（从坐标到「动作」）
 5. `src/lib/controller.ts` → rAF 主循环怎么把上面全串起来
-6. `src/games/fruitSlash.ts` → `stage.ts` / `draw.ts`（纯 Canvas 2D 游戏）
-7. `public/sw.js` → 离线与版本迁移
+6. `src/lib/hit.ts` + `hit.test.ts` → 命中判定的几何与两档半径，以及为什么能单测
+7. `src/games/fruitSlash.ts` → `stage.ts` / `draw.ts`（纯 Canvas 2D 游戏）
+8. `public/sw.js` → 离线与版本迁移
 
 ---
 
@@ -194,3 +204,7 @@ DNS 屏蔽外网）结果：11 个资源全部 200、15 个请求 100% 同源、
 **已知限制**：已验证浏览器端**推理器能完整初始化**，但本机没有可交互的摄像头环境，
 没有真正跑完一局。因此推理帧率、GPU delegate 是否生效、动作判定手感，仍需你在
 `/app/play/fruit-slash` 实测；GPU 创建失败会自动回落 CPU 并在 HUD 显示。
+
+命中判定的几何部分（线段-圆求交、躯干缩放容差、两档半径、进球矩形）已由
+`npm run test` 覆盖，但「手感如何」仍必须真机实测。开局前在设置面板的
+「命中判定」下拉里切换宽松 / 与视觉一致，即可对同一套动作做 A/B 对比。

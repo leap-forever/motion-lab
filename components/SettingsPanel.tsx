@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { listCameras } from '@/src/lib/camera';
-import { MODEL_BYTES, type PoseModel } from '@/src/lib/config';
+import { MODEL_BYTES, type HitMode, type PoseModel } from '@/src/lib/config';
 import type { Settings } from '@/src/lib/controller';
 
 interface Props {
@@ -52,6 +52,16 @@ export default function SettingsPanel({ value, onChange, disabled }: Props) {
           {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 人</option>)}
         </select>
         <small>对应 MediaPipe 的 numPoses；多留一个槽位更不容易丢人</small>
+      </label>
+
+      <label>
+        命中判定
+        <select disabled={disabled} value={value.hitMode}
+          onChange={(e) => set('hitMode', e.target.value as HitMode)}>
+          <option value="legacy">宽松（默认）</option>
+          <option value="aligned">与视觉一致</option>
+        </select>
+        <small>宽松模式在物体半径外留手势容差，且随站远站近缩放；「与视觉一致」严格按画面上的大小判定，命中更难</small>
       </label>
 
       <label className="check">

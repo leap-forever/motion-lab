@@ -51,3 +51,43 @@ export const MODEL_BYTES: Record<PoseModel, number> = {
 export const VISION_MODULE_URL = LOCAL
   ? '/mediapipe/vision_bundle.mjs'
   : `${VISION_CDN}/vision_bundle.mjs`;
+
+/**
+ * 命中判定调参。原来散在四个游戏里的 r+74 / r+30 / r+44 和 sprite 的
+ * r*2.4 / r*2.3 / r*2.2 收拢到这里，让「绘制多大」与「判定多大」同源。
+ *
+ * hitMode 由设置面板选择：
+ *   - legacy（默认）：判定半径 = r + tolerance×躯干缩放，保留原来的宽松手感；
+ *   - aligned：判定半径 = spriteScale/2 × r，严格等于视觉半径，所见即所得。
+ */
+export type HitMode = 'legacy' | 'aligned';
+
+export interface HitTuning {
+  /** drawSprite 的宽高 = r × spriteScale，因此视觉半径 = spriteScale/2 × r */
+  spriteScale: number;
+  /** legacy 模式的额外宽松量（世界像素，会随躯干缩放） */
+  tolerance: number;
+}
+
+interface HitConfig {
+  /** 与 EMPTY_FEATURES.torso / torsoSize 的默认体态一致 */
+  BASE_TORSO: number;
+  /** torso / BASE_TORSO 的上下限，防止贴镜头或站极远时失控 */
+  TORSO_CLAMP: readonly [number, number];
+  /** slashHits 的手速阈值（躯干长度/秒）与「手在画面上半区」限制 */
+  slashSpeed: number;
+  slashMaxY: number;
+  fruitSlash: HitTuning;
+  bubblePop: HitTuning;
+  soccerKick: HitTuning;
+}
+
+export const HIT: HitConfig = {
+  BASE_TORSO: 0.25,
+  TORSO_CLAMP: [0.5, 2],
+  slashSpeed: 1.6,
+  slashMaxY: 0.75,
+  fruitSlash: { spriteScale: 2.4, tolerance: 74 },
+  bubblePop: { spriteScale: 2.3, tolerance: 30 },
+  soccerKick: { spriteScale: 2.2, tolerance: 44 },
+};

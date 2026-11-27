@@ -7,7 +7,9 @@
  */
 import { circle, drawSprite, makeSprite, outlinedText, Particles, roundRect } from '../lib/draw';
 import { LOGICAL_H, LOGICAL_W, type Stage } from '../lib/stage';
-import { POSE_EDGES, type Point } from '../lib/landmarks';
+import { LM, POSE_EDGES, visible, type Point } from '../lib/landmarks';
+import { HIT } from '../lib/config';
+import { hitRadius, segmentCircleHit, toWorld } from '../lib/hit';
 import type { Game, GameFrame } from './types';
 
 interface Bubble {
@@ -51,6 +53,8 @@ export class BubblePop implements Game {
   private _feedback = '';
   private feedbackLeft = 0;
   private flash = 0;
+  /** 每只手已结算过的推理帧序号：防止手停在泡泡群上逐帧刷分 */
+  private lastPopSeq: [number, number] = [-1, -1];
 
   private showSkeletonFlag = false;
   private lastPoints: Point[][] = [];
@@ -112,14 +116,18 @@ export class BubblePop implements Game {
     }
     this.items = this.items.filter((b) => b.alive);
 
-    // 戳泡泡：任意一只手碰到即破
-    for (const w of this.lastWrists) {
+    // 戳泡泡：任意一只手碰到即破；每只手每个推理姿态最多戳一个
+    for (let i = 0; i < this.lastWrists.length; i += 1) {
+      const w = this.lastWrists[i];
       if (!w) continue;
-      const hx = w.x * LOGICAL_W;
-      const hy = w.y * LOGICAL_H;
+      if (f.poseSeq === this.lastPopSeq[i]) continue;
+      const to = toWorld(w);
+      const prev = f.prevPerson?.[i === 0 ? LM.leftWrist : LM.rightWrist];
+      const from = prev && visible(prev) ? toWorld(prev) : to;
       for (const b of this.items) {
         if (!b.alive) continue;
-        if (Math.hypot(b.x - hx, b.y - hy) > b.r + 30) continue;
+        const radius = hitRadius(b.r, HIT.bubblePop, f.features.torso, f.hitMode);
+        if (!segmentCircleHit(from, to, { x: b.x, y: b.y }, radius)) continue;
         b.alive = false;
         this.particles.burst(b.x, b.y, b.color, b.bomb ? 18 : 12);
         if (b.bomb) {
@@ -132,6 +140,7 @@ export class BubblePop implements Game {
           this._score += this._combo >= 5 ? 2 : 1;
           this.say(this._combo >= 3 ? `连戳 ×${this._combo}` : '戳破啦！');
         }
+        this.lastPopSeq[i] = f.poseSeq;
         break;
       }
     }
@@ -145,7 +154,8 @@ export class BubblePop implements Game {
     ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
     for (const b of this.items) {
-      drawSprite(ctx, b.sprite, b.x, b.y, b.r * 2.3, b.r * 2.3);
+      drawSprite(ctx, b.sprite, b.x, b.y,
+        b.r * HIT.bubblePop.spriteScale, b.r * HIT.bubblePop.spriteScale);
     }
     this.particles.draw(ctx);
 

@@ -8,7 +8,9 @@
  * 原站的 sim-*.js / poses-*.js 也是这个套路（poses chunk 里甚至存了
  * stand / T / Y / squat / wave 等姿势的角度模板）。
  */
+import { HIT } from './config';
 import { LM, centre, torsoSize, visible, type Point } from './landmarks';
+import type { Slash } from '../games/types';
 
 export interface BodyFeatures {
   present: boolean;
@@ -109,13 +111,24 @@ export class MotionTracker {
   }
 }
 
-/** 切水果游戏用：任意一只手速度越过阈值，且手在画面上半区 */
-export function slashHits(f: BodyFeatures): Array<{ x: number; y: number; power: number }> {
-  const out: Array<{ x: number; y: number; power: number }> = [];
+/**
+ * 切水果游戏用：任意一只手速度越过阈值，且手在画面上半区。
+ * from 取上一推理帧的同名手腕，供游戏做线段扫掠；没有上一帧时为 null。
+ */
+export function slashHits(f: BodyFeatures, prevPerson: Point[] | null = null): Slash[] {
+  const out: Slash[] = [];
   for (let i = 0; i < 2; i += 1) {
     const w = f.wrist[i];
-    if (w && f.handSpeed[i] > 1.6 && w.y < 0.75) {
-      out.push({ x: w.x, y: w.y, power: Math.min(1, f.handSpeed[i] / 5) });
+    if (w && f.handSpeed[i] > HIT.slashSpeed && w.y < HIT.slashMaxY) {
+      const idx = i === 0 ? LM.leftWrist : LM.rightWrist;
+      const prev = prevPerson?.[idx];
+      out.push({
+        x: w.x,
+        y: w.y,
+        power: Math.min(1, f.handSpeed[i] / 5),
+        hand: i as 0 | 1,
+        from: prev && visible(prev) ? { x: prev.x, y: prev.y } : null,
+      });
     }
   }
   return out;
