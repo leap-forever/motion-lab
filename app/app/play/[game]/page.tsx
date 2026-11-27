@@ -24,6 +24,7 @@ export default function PlayPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const ctrlRef = useRef<PlayController | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   const params = useParams();
   const rawId = params?.game;
@@ -35,9 +36,26 @@ export default function PlayPage() {
   const [state, setState] = useState<RuntimeState>({ ...INIT, timeLeft: info.duration });
   const [result, setResult] = useState<{ stars: number; rank: number; score: number } | null>(null);
   const [note, setNote] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // 组件卸载时必须停摄像头，否则标签页关了灯还亮着
   useEffect(() => () => ctrlRef.current?.stop(), []);
+
+  // 全屏状态变化（Esc 退出也要同步按钮文案）
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  const toggleFullscreen = () => {
+    const el = stageRef.current;
+    if (!document.fullscreenElement) {
+      el?.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
 
   const begin = async () => {
     if (!canvasRef.current || !videoRef.current) return;
@@ -94,9 +112,10 @@ export default function PlayPage() {
           <span>{state.persons} 人</span>
           <span>SIMD {state.simd ? '✓' : '×'}</span>
         </div>
+        <button className="ghost fs-btn" onClick={toggleFullscreen}>{isFullscreen ? '退出全屏' : '全屏'}</button>
       </div>
 
-      <div className="stage-wrap">
+      <div className="stage-wrap" ref={stageRef}>
         <canvas ref={canvasRef} className="game-canvas" />
 
         <video ref={videoRef} className="cam-preview" autoPlay muted playsInline />
