@@ -29,19 +29,19 @@ export const GAMES: GameInfo[] = [
     id: 'jump-rope', name: '跳绳冠军', nameEn: 'Jump Rope Champ', age: [6, 14],
     type: 'legs', energy: 'high', duration: 60, stars: [10, 20, 35],
     shot: '/assets/shots/jump-rope.jpg',
-    desc: '绳子扫到脚下时起跳，连击越长节奏越快。', playable: false,
+    desc: '绳子扫到脚下时起跳，连击越长节奏越快。', playable: true,
   },
   {
     id: 'soccer-kick', name: '足球射门', nameEn: 'Soccer Shootout', age: [4, 10],
     type: 'legs', energy: 'high', duration: 45, stars: [4, 8, 14],
     shot: '/assets/shots/soccer-kick.jpg',
-    desc: '用脚、膝盖和头把球顶进球门，不能用手。', playable: false,
+    desc: '用脚、膝盖和头把球顶进球门，不能用手。', playable: true,
   },
   {
     id: 'bubble-pop', name: '戳泡泡', nameEn: 'Bubble Pop', age: [3, 7],
     type: 'hands', energy: 'light', duration: 45, stars: [8, 15, 24],
     shot: '/assets/shots/bubble-pop.jpg',
-    desc: '伸手戳破小青蛙吹出来的泡泡。', playable: false,
+    desc: '伸手戳破小青蛙吹出来的泡泡。', playable: true,
   },
 ];
 

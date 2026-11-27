@@ -92,10 +92,10 @@ export default function HomePage() {
 
         <h2>示例游戏</h2>
         <div className="grid">
-          <article className="card"><img src="/assets/shots/fruit-slash.jpg" alt="切水果" /><div><h3>切水果</h3><p>挥手切开飞起的水果，别碰炸弹 · 已实现</p></div></article>
-          <article className="card"><img src="/assets/shots/jump-rope.jpg" alt="跳绳冠军" /><div><h3>跳绳冠军</h3><p>脚部动作与节奏判定 · 仅作素材展示</p></div></article>
-          <article className="card"><img src="/assets/shots/soccer-kick.jpg" alt="足球射门" /><div><h3>足球射门</h3><p>下肢关键点判定 · 仅作素材展示</p></div></article>
-          <article className="card"><img src="/assets/shots/bubble-pop.jpg" alt="戳泡泡" /><div><h3>戳泡泡</h3><p>手部关键点判定 · 仅作素材展示</p></div></article>
+          <a className="card" href="/app/play/fruit-slash"><img src="/assets/shots/fruit-slash.jpg" alt="切水果" /><div><h3>切水果</h3><p>挥手切开飞起的水果，别碰炸弹 · 已实现</p></div></a>
+          <a className="card" href="/app/play/jump-rope"><img src="/assets/shots/jump-rope.jpg" alt="跳绳冠军" /><div><h3>跳绳冠军</h3><p>脚部动作与节奏判定 · 已实现</p></div></a>
+          <a className="card" href="/app/play/soccer-kick"><img src="/assets/shots/soccer-kick.jpg" alt="足球射门" /><div><h3>足球射门</h3><p>下肢关键点判定 · 已实现</p></div></a>
+          <a className="card" href="/app/play/bubble-pop"><img src="/assets/shots/bubble-pop.jpg" alt="戳泡泡" /><div><h3>戳泡泡</h3><p>手部关键点判定 · 已实现</p></div></a>
         </div>
 
         <h2>这一层为什么是纯静态 HTML</h2>

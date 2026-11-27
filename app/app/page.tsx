@@ -47,7 +47,7 @@ export default function HomePage() {
         <h2>游戏</h2>
         <div className="cards">
           {games.map((g) => (
-            <article className="card" key={g.id}>
+            <a className="card" key={g.id} href={`/app/play/${g.id}`}>
               <img src={g.shot} alt={g.name} loading="lazy" />
               <div className="card-body">
                 <h3>{g.name} <small>{g.nameEn}</small></h3>
@@ -58,7 +58,7 @@ export default function HomePage() {
                   <span className={g.playable ? 'ok' : ''}>{g.playable ? '可玩' : '仅展示'}</span>
                 </div>
               </div>
-            </article>
+            </a>
           ))}
         </div>
       </section>

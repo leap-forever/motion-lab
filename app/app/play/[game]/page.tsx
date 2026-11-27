@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { api, deviceId } from '@/src/lib/api';
 import { loadSettings, PlayController, type RuntimeState, type Settings } from '@/src/lib/controller';
+import { GAMES } from '@/lib/games';
 import SettingsPanel from '@/components/SettingsPanel';
 
 const INIT: RuntimeState = {
@@ -16,14 +18,21 @@ const INIT: RuntimeState = {
  *
  * 摄像头 / WASM / Canvas 全是浏览器 API，整页标记 'use client'。
  * Next 在服务端只渲染外壳（idle overlay），canvas/video 的真实初始化在客户端 effect 里完成。
- * 动态段 [game] 兼容 /app/play/<任意>；当前可玩的只有 fruit-slash（与原版一致）。
+ * 动态段 [game] 兼容 /app/play/<任意>；按 id 从注册表创建对应游戏。
  */
 export default function PlayPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const ctrlRef = useRef<PlayController | null>(null);
+
+  const params = useParams();
+  const rawId = params?.game;
+  const id = typeof rawId === 'string' ? rawId : Array.isArray(rawId) ? rawId[0] : 'fruit-slash';
+  const info = GAMES.find((g) => g.id === id) ?? GAMES[0];
+  const gameId = info.id;
+
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [state, setState] = useState<RuntimeState>(INIT);
+  const [state, setState] = useState<RuntimeState>({ ...INIT, timeLeft: info.duration });
   const [result, setResult] = useState<{ stars: number; rank: number; score: number } | null>(null);
   const [note, setNote] = useState('');
 
@@ -35,18 +44,19 @@ export default function PlayPage() {
     setNote('');
 
     ctrlRef.current?.stop();
-    setState({ ...INIT, phase: 'loading', message: '准备中…' });
+    setState({ ...INIT, timeLeft: info.duration, phase: 'loading', message: '准备中…' });
     setResult(null);
 
     const ctrl = new PlayController({
       canvas: canvasRef.current,
       video: videoRef.current,
       settings,
+      gameId,
       onState: (patch) => setState((s) => ({ ...s, ...patch })),
       onFinish: async (score, durationMs) => {
         try {
           const r = await api.submitScore({
-            game: 'fruit-slash',
+            game: gameId,
             nickname: localStorage.getItem('motion-lab:nickname') || '小玩家',
             score, durationMs, deviceId: deviceId(),
           });
@@ -64,7 +74,7 @@ export default function PlayPage() {
   const again = () => {
     ctrlRef.current?.stop();
     ctrlRef.current = null;
-    setState({ ...INIT });
+    setState({ ...INIT, timeLeft: info.duration });
     setResult(null);
     // 等一拍让摄像头轨道彻底释放，再重新申请
     window.setTimeout(() => void begin(), 120);
@@ -76,7 +86,7 @@ export default function PlayPage() {
   return (
     <div className="page play-page">
       <div className="play-head">
-        <h1>切水果 <small>Fruit Slash</small></h1>
+        <h1>{info.name} <small>{info.nameEn}</small></h1>
         <div className="hud-chips">
           <span>采集 {state.camFps || '—'} fps</span>
           <span>推理 {state.inferFps || '—'} fps</span>
@@ -96,8 +106,8 @@ export default function PlayPage() {
           <div className="overlay">
             {idle && (
               <div className="overlay-card wide">
-                <h2>挥手切开飞起来的水果</h2>
-                <p>站在摄像头前 2 米左右，让上半身和双手都在画面里。首次启动要下载 WASM 与姿态模型，耐心等几秒。</p>
+                <h2>{info.name}</h2>
+                <p>{info.desc}。站在摄像头前 2 米左右，让上半身和双手都在画面里。首次启动要下载 WASM 与姿态模型，耐心等几秒。</p>
                 <SettingsPanel value={settings} onChange={setSettings} />
                 <button className="primary" onClick={() => void begin()}>开始游戏</button>
                 {note && <p className="warn">{note}</p>}

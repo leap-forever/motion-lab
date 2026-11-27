@@ -17,7 +17,8 @@ import { mirrored, type Point } from './landmarks';
 import { analyseLighting, checkFraming } from './framing';
 import { Stage } from './stage';
 import type { PoseModel } from './config';
-import { FruitSlash } from '../games/fruitSlash';
+import { createGame } from '../games';
+import type { Game } from '../games/types';
 
 export interface Settings {
   model: PoseModel;
@@ -75,6 +76,7 @@ export class PlayController {
   private canvas: HTMLCanvasElement;
   private video: HTMLVideoElement;
   private settings: Settings;
+  private gameId: string;
   private onState: (patch: Partial<RuntimeState>) => void;
   private onFinish: (score: number, durationMs: number) => void;
 
@@ -83,7 +85,7 @@ export class PlayController {
   private gate = new FrameGate();
   private tracker = new MotionTracker();
   private stage: Stage | null = null;
-  private game: FruitSlash | null = null;
+  private game: Game | null = null;
   private raf = 0;
   private last = 0;
   private lastInfer = 0;
@@ -101,12 +103,14 @@ export class PlayController {
     canvas: HTMLCanvasElement;
     video: HTMLVideoElement;
     settings: Settings;
+    gameId: string;
     onState: (patch: Partial<RuntimeState>) => void;
     onFinish: (score: number, durationMs: number) => void;
   }) {
     this.canvas = opts.canvas;
     this.video = opts.video;
     this.settings = opts.settings;
+    this.gameId = opts.gameId;
     this.onState = opts.onState;
     this.onFinish = opts.onFinish;
   }
@@ -137,7 +141,7 @@ export class PlayController {
       this.onState({ delegate: this.detector.delegate || 'CPU', poseModel: this.settings.model });
 
       this.stage = new Stage(this.canvas);
-      this.game = new FruitSlash();
+      this.game = createGame(this.gameId);
       this.gate.reset();
       this.tracker.reset();
       this.attachFrameClock();
