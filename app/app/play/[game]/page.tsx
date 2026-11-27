@@ -71,6 +71,7 @@ export default function PlayPage() {
 
   const idle = state.phase === 'idle' || state.phase === 'error';
   const loading = state.phase === 'loading';
+  const paused = state.phase === 'paused';
 
   return (
     <div className="page play-page">
@@ -89,11 +90,12 @@ export default function PlayPage() {
         key={game.id}
         ref={stageRef}
         gameId={game.id}
+        phase={state.phase}
         settings={settings}
         onState={onStatePatch}
         onFinish={submitScore}
       >
-        {(idle || loading || state.phase === 'finished') && (
+        {(idle || loading || state.phase === 'finished' || paused) && (
           <div className="overlay">
             {idle && (
               <div className="overlay-card wide">
@@ -101,11 +103,22 @@ export default function PlayPage() {
                 <p>{game.desc}。站在摄像头前 2 米左右，让上半身和双手都在画面里。首次启动要下载 WASM 与姿态模型，耐心等几秒。</p>
                 <SettingsPanel value={settings} onChange={setSettings} />
                 <button className="primary" onClick={() => void begin()}>开始游戏</button>
+                <p className="tiny">游戏中可点击舞台右上角「暂停」，或按 P 键暂停。</p>
                 {note && <p className="warn">{note}</p>}
                 {state.phase === 'error' && <p className="warn">出错了：{state.error}</p>}
               </div>
             )}
             {loading && <div className="overlay-card"><h2>正在准备…</h2><p>{state.message}</p></div>}
+            {paused && (
+              <div className="overlay-card">
+                <h2>游戏已暂停</h2>
+                <p>当前 {state.score} 分 · 剩余 {state.timeLeft}s</p>
+                <p className="muted">倒计时、姿态识别与游戏逻辑已暂停，继续后从原进度恢复。</p>
+                <button className="primary" onClick={() => stageRef.current?.resume()}>继续游戏</button>
+                <a className="ghost" href="/app">回大厅</a>
+                <p className="tiny">也可以按 P 键继续</p>
+              </div>
+            )}
             {state.phase === 'finished' && (
               <div className="overlay-card">
                 <h2>时间到！</h2>

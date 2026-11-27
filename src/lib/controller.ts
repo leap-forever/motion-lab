@@ -8,6 +8,8 @@
  *   rAF(60Hz)  ←→  摄像头(约30Hz)  ←→  推理(受 FrameGate 限制)
  *   三者时钟不同步是常态，所以推理结果用 MotionTracker 平滑后再喂游戏，
  *   游戏渲染仍跟 rAF 走，画面不会因为推理慢而掉帧。
+ *
+ * 暂停只停 rAF 与游戏时钟，不释放摄像头 / WASM 模型，恢复时无需重新授权或加载。
  */
 import { openCamera, measureFps, probeSimd, probeWebGL2, type CameraHandle } from './camera';
 import { FrameGate } from './frameGate';
@@ -47,7 +49,7 @@ export function saveSettings(s: Settings): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 }
 
-export type Phase = 'idle' | 'loading' | 'running' | 'finished' | 'error';
+export type Phase = 'idle' | 'loading' | 'running' | 'paused' | 'finished' | 'error';
 
 export interface RuntimeState {
   phase: Phase;
@@ -98,6 +100,10 @@ export class PlayController {
   private inferWindow: number[] = [];
   private sampleCanvas: HTMLCanvasElement | null = null;
   private running = false;
+  private paused = false;
+  private pausedAt = 0;
+  /** 累计暂停时长：游戏用的 frame.now 要扣掉它，冷却窗口才不会在恢复时失效 */
+  private pausedTotal = 0;
 
   constructor(opts: {
     canvas: HTMLCanvasElement;
@@ -115,9 +121,20 @@ export class PlayController {
     this.onFinish = opts.onFinish;
   }
 
+  get isPaused(): boolean { return this.paused; }
+
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
+    this.paused = false;
+    this.pausedAt = 0;
+    this.pausedTotal = 0;
+    this.lastReport = 0;
+    this.lastLighting = 0;
+    this.lastVideoTime = -1;
+    this.features = { ...EMPTY_FEATURES };
+    this.persons = [];
+    this.inferWindow = [];
     const say = (message: string) => this.onState({ phase: 'loading', message });
 
     try {
@@ -164,7 +181,8 @@ export class PlayController {
       this.hasRVFC = true;
       const cb = (_now: number, meta: { presentedFrames?: number }) => {
         if (!this.running) return;
-        this.gate.frame(performance.now(), meta.presentedFrames ?? null);
+        // 暂停期间继续续订回调，但不喂给 FrameGate；恢复时 gate.reset() 清掉旧样本
+        if (!this.paused) this.gate.frame(performance.now(), meta.presentedFrames ?? null);
         v.requestVideoFrameCallback!(cb);
       };
       v.requestVideoFrameCallback(cb);
@@ -172,7 +190,9 @@ export class PlayController {
   }
 
   private loop = (now: number): void => {
-    if (!this.running || !this.game || !this.stage) return;
+    if (!this.running || this.paused || !this.game || !this.stage) return;
+    // 游戏里的挥手冷却 / 空中窗口用 now；暂停期间这条时钟也不推进
+    const gameNow = now - this.pausedTotal;
     const dt = Math.max(0.001, Math.min(0.1, (now - this.last) / 1000));
     this.last = now;
 
@@ -202,7 +222,7 @@ export class PlayController {
     }
 
     this.game.update({
-      dt, now,
+      dt, now: gameNow,
       features: this.features,
       points: this.persons,
       slashes: slashHits(this.features),
@@ -234,6 +254,46 @@ export class PlayController {
     this.raf = requestAnimationFrame(this.loop);
   };
 
+  /** 暂停：保留摄像头与模型，冻结 rAF / 推理 / 游戏进度 */
+  pause(): void {
+    if (!this.running || this.paused || !this.game || !this.stage || this.game.finished) return;
+    this.paused = true;
+    this.pausedAt = performance.now();
+    cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    // 清掉暂停前的姿态，避免恢复首帧把旧位置突变当成一次挥手或起跳
+    this.tracker.reset();
+    this.features = { ...EMPTY_FEATURES };
+    this.persons = [];
+    this.inferWindow = [];
+    this.gate.reset();
+    this.onState({
+      phase: 'paused', message: '游戏已暂停',
+      inferFps: 0, camFps: 0, persons: 0, feedback: '',
+    });
+  }
+
+  /** 恢复：对齐所有真实时钟，累计暂停时长从游戏 now 中扣除 */
+  resume(): void {
+    if (!this.running || !this.paused || !this.game || !this.stage || this.game.finished) return;
+    const now = performance.now();
+    this.pausedTotal += Math.max(0, now - this.pausedAt);
+    this.paused = false;
+    this.pausedAt = 0;
+    this.last = now;
+    this.lastInfer = now;
+    this.lastLighting = now;
+    this.lastReport = 0;
+    this.lastVideoTime = this.video.currentTime;
+    this.gate.reset();
+    this.onState({
+      phase: 'running', message: '继续游戏',
+      inferFps: 0, camFps: 0, persons: 0, feedback: '',
+    });
+    cancelAnimationFrame(this.raf);
+    this.raf = requestAnimationFrame(this.loop);
+  }
+
   private sampleLighting(): string | null {
     try {
       if (!this.sampleCanvas) {
@@ -253,7 +313,21 @@ export class PlayController {
 
   stop(): void {
     this.running = false;
+    this.paused = false;
+    this.pausedAt = 0;
+    this.pausedTotal = 0;
     cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    this.last = 0;
+    this.lastInfer = 0;
+    this.lastReport = 0;
+    this.lastLighting = 0;
+    this.lastVideoTime = -1;
+    this.features = { ...EMPTY_FEATURES };
+    this.persons = [];
+    this.inferWindow = [];
+    this.tracker.reset();
+    this.gate.reset();
     this.cam?.stop();
     this.cam = null;
     this.detector.close();
