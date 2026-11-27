@@ -164,19 +164,13 @@ export class FruitSlash implements Game {
   draw(stage: Stage): void {
     const ctx = stage.begin();
 
-    // 背景：纯 Canvas 2D 画的天与地，不依赖任何图片资源
-    const sky = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
-    sky.addColorStop(0, '#87ceeb');
-    sky.addColorStop(0.72, '#d9f2ff');
-    sky.addColorStop(1, '#bde6a8');
-    ctx.fillStyle = sky;
+    // 背景为下层摄像头视频，这里不再画不透明天/地
+    // 轻微暗角，让水果和文字更清晰
+    const vignette = ctx.createRadialGradient(LOGICAL_W / 2, LOGICAL_H / 2, 200, LOGICAL_W / 2, LOGICAL_H / 2, 820);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-    ctx.fillStyle = '#8fd06f';
-    ctx.beginPath();
-    ctx.moveTo(0, 640);
-    ctx.quadraticCurveTo(320, 580, 640, 640);
-    ctx.quadraticCurveTo(960, 700, LOGICAL_W, 620);
-    ctx.lineTo(LOGICAL_W, LOGICAL_H); ctx.lineTo(0, LOGICAL_H); ctx.closePath(); ctx.fill();
 
     for (const it of this.items) {
       drawSprite(ctx, it.sprite, it.x, it.y, it.r * 2.4, it.r * 2.4, it.rot);

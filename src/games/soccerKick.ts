@@ -138,13 +138,11 @@ export class SoccerKick implements Game {
   draw(stage: Stage): void {
     const ctx = stage.begin();
 
-    const bg = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
-    bg.addColorStop(0, '#7ec850');
-    bg.addColorStop(1, '#4f9b30');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-    ctx.fillStyle = '#00000018';
+    // 背景为下层摄像头视频；画半透明地面与球场参考线
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillRect(0, GROUND_Y, LOGICAL_W, LOGICAL_H - GROUND_Y);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(LOGICAL_W, GROUND_Y); ctx.stroke();
 
     // 球门
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.lineCap = 'round';

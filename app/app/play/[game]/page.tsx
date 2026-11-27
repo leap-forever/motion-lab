@@ -118,8 +118,8 @@ export default function PlayPage() {
       <div className="stage-wrap" ref={stageRef}>
         <canvas ref={canvasRef} className="game-canvas" />
 
-        <video ref={videoRef} className="cam-preview" autoPlay muted playsInline />
-        <div className="cam-label">本地预览 · 不上传</div>
+        <video ref={videoRef} className="cam-bg" autoPlay muted playsInline />
+        <div className="cam-label">本地画面 · 不上传</div>
 
         {(idle || loading || state.phase === 'finished') && (
           <div className="overlay">

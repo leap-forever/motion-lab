@@ -17,7 +17,8 @@ export class Stage {
   private ro: ResizeObserver | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
-    const ctx = canvas.getContext('2d', { alpha: false });
+    // alpha:true：让 Canvas 透明，下层放摄像头 <video> 作背景
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) throw new Error('浏览器不支持 Canvas 2D');
     this.canvas = canvas;
     this.ctx = ctx;
@@ -53,12 +54,11 @@ export class Stage {
     return { x: (x - this.ox) / this.scale, y: (y - this.oy) / this.scale };
   }
 
-  /** 每帧开头调用：清屏 + 铺黑边 + 切到逻辑坐标系 */
+  /** 每帧开头调用：清屏 + 切到逻辑坐标系（透明背景，露出下层摄像头视频） */
   begin(): CanvasRenderingContext2D {
     const { ctx } = this;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = '#101a2c';
-    ctx.fillRect(0, 0, this.W, this.H);
+    ctx.clearRect(0, 0, this.W, this.H);
     ctx.save();
     ctx.translate(this.ox, this.oy);
     ctx.scale(this.scale, this.scale);

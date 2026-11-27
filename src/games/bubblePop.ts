@@ -140,10 +140,8 @@ export class BubblePop implements Game {
   draw(stage: Stage): void {
     const ctx = stage.begin();
 
-    const bg = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
-    bg.addColorStop(0, '#a0e9ff');
-    bg.addColorStop(1, '#e8f9ff');
-    ctx.fillStyle = bg;
+    // 背景为下层摄像头视频，仅加一层很淡的冷色调，让泡泡更突出
+    ctx.fillStyle = 'rgba(160,233,255,0.12)';
     ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
     for (const b of this.items) {

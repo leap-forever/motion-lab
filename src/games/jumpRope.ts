@@ -87,14 +87,14 @@ export class JumpRope implements Game {
   draw(stage: Stage): void {
     const ctx = stage.begin();
 
-    const bg = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
-    bg.addColorStop(0, '#3b4a6b');
-    bg.addColorStop(0.7, '#5b6b8c');
-    bg.addColorStop(1, '#8a7d6b');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-    ctx.fillStyle = '#00000022';
-    ctx.fillRect(0, this.cy + this.ropeR, LOGICAL_W, LOGICAL_H);
+    // 背景为下层摄像头视频；在脚下画一条半透明地面参考线
+    const groundY = Math.min(LOGICAL_H - 1, this.cy + this.ropeR);
+    if (groundY < LOGICAL_H) {
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillRect(0, groundY, LOGICAL_W, LOGICAL_H - groundY);
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(LOGICAL_W, groundY); ctx.stroke();
+    }
 
     // 玩家骨架
     if (this.showSkeletonFlag) {

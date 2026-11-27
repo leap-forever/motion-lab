@@ -88,17 +88,17 @@ p { line-height: 1.7; }
 .play-head h1 small { font-size: 14px; color: var(--muted); font-weight: 400; }
 .hud-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .hud-chips span { font-size: 12px; background: var(--accent-soft); color: #2d4ba8; padding: 5px 10px; border-radius: 999px; }
-.stage-wrap { position: relative; margin-top: 14px; border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px #1d274022; }
-.game-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #101a2c; }
-.cam-preview { position: absolute; right: 14px; bottom: 14px; width: 190px; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px; border: 2px solid #ffffffcc; background: #000; transform: scaleX(-1); }
-.cam-label { position: absolute; right: 18px; bottom: 158px; font-size: 11px; color: #fff; background: #101a2caa; padding: 3px 8px; border-radius: 6px; }
-.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: #101a2cbb; backdrop-filter: blur(3px); padding: 18px; }
+.stage-wrap { position: relative; margin-top: 14px; border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px #1d274022; background: #000; }
+.cam-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #000; z-index: 0; }
+.game-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; position: relative; z-index: 1; }
+.cam-label { position: absolute; left: 14px; top: 14px; z-index: 2; font-size: 11px; color: #fff; background: #101a2caa; padding: 3px 8px; border-radius: 6px; }
+.overlay { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: #101a2cbb; backdrop-filter: blur(3px); padding: 18px; }
 .overlay-card { background: var(--surface); border-radius: 16px; padding: 26px 30px; text-align: center; max-width: 420px; max-height: 92%; overflow: auto; }
 .overlay-card.wide { max-width: 520px; text-align: left; }
 .overlay-card .settings { margin: 16px 0; text-align: left; }
 .overlay-card .primary { display: block; width: 100%; margin-top: 6px; }
 .big-score { font-size: 46px; font-weight: 800; margin: 8px 0; color: var(--accent); }
-.live-hud { position: absolute; left: 16px; bottom: 16px; display: grid; gap: 4px; color: #fff; text-shadow: 0 2px 6px #000a; }
+.live-hud { position: absolute; left: 16px; bottom: 16px; z-index: 2; display: grid; gap: 4px; color: #fff; text-shadow: 0 2px 6px #000a; }
 .live-hud b { font-size: 30px; }
 .live-hud em { font-style: normal; color: #ffd93d; font-weight: 700; }
 .live-hud .tip { margin: 2px 0; font-size: 13px; background: #101a2caa; padding: 4px 10px; border-radius: 8px; text-shadow: none; }
