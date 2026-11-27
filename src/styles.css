@@ -103,7 +103,7 @@ p { line-height: 1.7; }
 .live-hud em { font-style: normal; color: #ffd93d; font-weight: 700; }
 .live-hud .tip { margin: 2px 0; font-size: 13px; background: #101a2caa; padding: 4px 10px; border-radius: 8px; text-shadow: none; }
 
-.fs-btn { margin-left: auto; align-self: center; padding: 6px 12px; font-size: 13px; }
+.stage-fs-btn { position: absolute; right: 14px; top: 14px; z-index: 2; padding: 6px 12px; font-size: 13px; }
 .stage-wrap:fullscreen, .stage-wrap:-webkit-full-screen { width: 100vw; height: 100vh; border-radius: 0; background: #000; }
 .stage-wrap:fullscreen .game-canvas, .stage-wrap:-webkit-full-screen .game-canvas { width: 100%; height: 100%; aspect-ratio: auto; }
 

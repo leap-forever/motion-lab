@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { api, deviceId } from '@/src/lib/api';
-import { loadSettings, PlayController, type RuntimeState, type Settings } from '@/src/lib/controller';
+import { loadSettings, type RuntimeState, type Settings } from '@/src/lib/controller';
 import { GAMES } from '@/lib/games';
+import GameStage, { type GameStageHandle } from '@/components/GameStage';
 import SettingsPanel from '@/components/SettingsPanel';
 
 const INIT: RuntimeState = {
@@ -13,86 +14,56 @@ const INIT: RuntimeState = {
   framing: '', lighting: '', error: '', persons: 0,
 };
 
+interface Result {
+  stars: number;
+  rank: number;
+  score: number;
+}
+
 /**
- * 游戏页（原 src/pages/Play.tsx）。
- *
- * 摄像头 / WASM / Canvas 全是浏览器 API，整页标记 'use client'。
- * Next 在服务端只渲染外壳（idle overlay），canvas/video 的真实初始化在客户端 effect 里完成。
- * 动态段 [game] 兼容 /app/play/<任意>；按 id 从注册表创建对应游戏。
+ * 游戏路由页：保留页面级 UI（标题 / 设置 / HUD / 结束面板 / 成绩提交），
+ * 舞台本体交给可复用的 GameStage。
  */
 export default function PlayPage() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const ctrlRef = useRef<PlayController | null>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-
   const params = useParams();
   const rawId = params?.game;
   const id = typeof rawId === 'string' ? rawId : Array.isArray(rawId) ? rawId[0] : 'fruit-slash';
-  const info = GAMES.find((g) => g.id === id) ?? GAMES[0];
-  const gameId = info.id;
+  const game = GAMES.find((g) => g.id === id) ?? GAMES[0];
 
+  const stageRef = useRef<GameStageHandle>(null);
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [state, setState] = useState<RuntimeState>({ ...INIT, timeLeft: info.duration });
-  const [result, setResult] = useState<{ stars: number; rank: number; score: number } | null>(null);
+  const [state, setState] = useState<RuntimeState>({ ...INIT, timeLeft: game.duration });
+  const [result, setResult] = useState<Result | null>(null);
   const [note, setNote] = useState('');
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // 组件卸载时必须停摄像头，否则标签页关了灯还亮着
-  useEffect(() => () => ctrlRef.current?.stop(), []);
+  const onStatePatch = (patch: Partial<RuntimeState>) => {
+    setState((s) => ({ ...s, ...patch }));
+  };
 
-  // 全屏状态变化（Esc 退出也要同步按钮文案）
-  useEffect(() => {
-    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', onFs);
-    return () => document.removeEventListener('fullscreenchange', onFs);
-  }, []);
-
-  const toggleFullscreen = () => {
-    const el = stageRef.current;
-    if (!document.fullscreenElement) {
-      el?.requestFullscreen?.().catch(() => {});
-    } else {
-      document.exitFullscreen?.().catch(() => {});
+  const submitScore = async (score: number, durationMs: number) => {
+    try {
+      const r = await api.submitScore({
+        game: game.id,
+        nickname: localStorage.getItem('motion-lab:nickname') || '小玩家',
+        score, durationMs, deviceId: deviceId(),
+      });
+      setResult({ stars: r.stars, rank: r.rank, score });
+    } catch {
+      setResult({ stars: 0, rank: 0, score });
+      setNote('成绩没存上（后端离线？），本局分数仍显示在下面。');
     }
   };
 
   const begin = async () => {
-    if (!canvasRef.current || !videoRef.current) return;
     setNote('');
-
-    ctrlRef.current?.stop();
-    setState({ ...INIT, timeLeft: info.duration, phase: 'loading', message: '准备中…' });
+    setState({ ...INIT, timeLeft: game.duration, phase: 'loading', message: '准备中…' });
     setResult(null);
-
-    const ctrl = new PlayController({
-      canvas: canvasRef.current,
-      video: videoRef.current,
-      settings,
-      gameId,
-      onState: (patch) => setState((s) => ({ ...s, ...patch })),
-      onFinish: async (score, durationMs) => {
-        try {
-          const r = await api.submitScore({
-            game: gameId,
-            nickname: localStorage.getItem('motion-lab:nickname') || '小玩家',
-            score, durationMs, deviceId: deviceId(),
-          });
-          setResult({ stars: r.stars, rank: r.rank, score });
-        } catch {
-          setResult({ stars: 0, rank: 0, score });
-          setNote('成绩没存上（后端离线？），本局分数仍显示在下面。');
-        }
-      },
-    });
-    ctrlRef.current = ctrl;
-    await ctrl.start();
+    await stageRef.current?.begin();
   };
 
   const again = () => {
-    ctrlRef.current?.stop();
-    ctrlRef.current = null;
-    setState({ ...INIT, timeLeft: info.duration });
+    stageRef.current?.stop();
+    setState({ ...INIT, timeLeft: game.duration });
     setResult(null);
     // 等一拍让摄像头轨道彻底释放，再重新申请
     window.setTimeout(() => void begin(), 120);
@@ -104,7 +75,7 @@ export default function PlayPage() {
   return (
     <div className="page play-page">
       <div className="play-head">
-        <h1>{info.name} <small>{info.nameEn}</small></h1>
+        <h1>{game.name} <small>{game.nameEn}</small></h1>
         <div className="hud-chips">
           <span>采集 {state.camFps || '—'} fps</span>
           <span>推理 {state.inferFps || '—'} fps</span>
@@ -112,21 +83,22 @@ export default function PlayPage() {
           <span>{state.persons} 人</span>
           <span>SIMD {state.simd ? '✓' : '×'}</span>
         </div>
-        <button className="ghost fs-btn" onClick={toggleFullscreen}>{isFullscreen ? '退出全屏' : '全屏'}</button>
       </div>
 
-      <div className="stage-wrap" ref={stageRef}>
-        <canvas ref={canvasRef} className="game-canvas" />
-
-        <video ref={videoRef} className="cam-bg" autoPlay muted playsInline />
-        <div className="cam-label">本地画面 · 不上传</div>
-
+      <GameStage
+        key={game.id}
+        ref={stageRef}
+        gameId={game.id}
+        settings={settings}
+        onState={onStatePatch}
+        onFinish={submitScore}
+      >
         {(idle || loading || state.phase === 'finished') && (
           <div className="overlay">
             {idle && (
               <div className="overlay-card wide">
-                <h2>{info.name}</h2>
-                <p>{info.desc}。站在摄像头前 2 米左右，让上半身和双手都在画面里。首次启动要下载 WASM 与姿态模型，耐心等几秒。</p>
+                <h2>{game.name}</h2>
+                <p>{game.desc}。站在摄像头前 2 米左右，让上半身和双手都在画面里。首次启动要下载 WASM 与姿态模型，耐心等几秒。</p>
                 <SettingsPanel value={settings} onChange={setSettings} />
                 <button className="primary" onClick={() => void begin()}>开始游戏</button>
                 {note && <p className="warn">{note}</p>}
@@ -156,7 +128,7 @@ export default function PlayPage() {
             {state.lighting && <p className="tip">💡 {state.lighting}</p>}
           </div>
         )}
-      </div>
+      </GameStage>
 
       <p className="tiny">
         GPU：{state.gpu || '检测中'} · 摄像头画面只进本地 &lt;video&gt; 与 canvas；模型推理在本机 WASM 中完成。
